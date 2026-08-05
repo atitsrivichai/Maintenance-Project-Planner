@@ -1,0 +1,3057 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maintenance Project Planner V.11 (Online / Google Drive Sync)</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js" async defer></script>
+<style>
+  :root {
+    --header-bg: #2B303A;
+    --header-text: #FFFFFF;
+    --sidebar-bg: #F8F9FA;
+    --sidebar-border: #E0E4E8;
+    --timeline-bg: #FFFFFF;
+    --line-color: #E6EBF0;
+    --text-main: #2D3436;
+    --text-muted: #7F8C8D;
+    
+    --status-completed: #2ECC71;
+    --status-inprogress: #3498DB;
+    --status-delay: #F39C12;
+    --status-problem: #E74C3C;
+    --status-cancelled: #95A5A6;
+    --status-none: #B0BEC5;
+    
+    --amber-primary: #E67E22;
+    --amber-hover: #D35400;
+    --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    --font-sans: -apple-system, "Segoe UI", "Noto Sans Thai", Roboto, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; font-family: var(--font-sans); color: var(--text-main); background: #F4F6F8; overflow: hidden; }
+
+  /* App Layout */
+  .app-container { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
+
+  /* Top Navigation Bar */
+  header.app-bar {
+    height: 50px; background: var(--header-bg); color: var(--header-text);
+    display: flex; align-items: center; justify-content: space-between; padding: 0 16px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15); z-index: 20; flex-shrink: 0; gap: 10px; overflow-x: auto;
+  }
+  .header-left { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .btn-icon-grid {
+    background: transparent; border: none; color: #FFF; font-size: 20px; cursor: pointer;
+    width: 36px; height: 36px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  .btn-icon-grid:hover { background: rgba(255,255,255,0.12); }
+  .project-title-input {
+    background: transparent; border: none; border-bottom: 1px dashed rgba(255,255,255,0.4);
+    color: #F1C40F; font-size: 16px; font-weight: 700; padding: 2px 6px; outline: none;
+    font-family: var(--font-sans); min-width: 180px;
+  }
+  .project-title-input:focus { border-bottom-color: #F1C40F; background: rgba(0,0,0,0.2); }
+
+  .header-controls { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; flex-shrink: 0; }
+  .zoom-group { display: flex; background: rgba(0,0,0,0.25); border-radius: 6px; padding: 2px; }
+  .zoom-btn {
+    background: transparent; border: none; color: #BDC3C7; font-size: 11px; font-weight: 600;
+    padding: 5px 8px; border-radius: 4px; cursor: pointer; transition: all 0.15s;
+  }
+  .zoom-btn.active { background: rgba(255,255,255,0.2); color: #FFF; }
+  .zoom-btn:hover:not(.active) { color: #FFF; }
+
+  /* Date Range Controls - High Contrast White Background */
+  .date-range-bar {
+    display: flex; align-items: center; gap: 6px; font-size: 11px;
+    background: rgba(0,0,0,0.25); border-radius: 6px; padding: 3px 8px; color: #ECF0F1;
+  }
+  .range-date-input {
+    background: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 4px;
+    color: #1E293B; font-family: var(--font-mono); font-size: 11px; font-weight: 600; padding: 2px 6px; outline: none; cursor: pointer;
+  }
+  .range-date-input::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.85; }
+  .range-date-input:focus { border-color: var(--amber-primary); box-shadow: 0 0 0 2px rgba(230,126,34,0.25); }
+
+  .btn-header {
+    background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: #FFF;
+    font-size: 11px; font-weight: 600; padding: 5px 9px; border-radius: 6px; cursor: pointer;
+    display: flex; align-items: center; gap: 4px; transition: all 0.15s; white-space: nowrap;
+  }
+  .btn-header:hover { background: rgba(255,255,255,0.25); }
+  .btn-header.active { background: #E74C3C; border-color: #E74C3C; color: #FFF; }
+  .btn-header.primary { background: var(--amber-primary); border-color: var(--amber-primary); color: #FFF; }
+  .btn-header.primary:hover { background: var(--amber-hover); }
+
+  /* Left Flyout Drawer Menu */
+  .drawer-overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.4); z-index: 99; opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+  }
+  .drawer-overlay.open { opacity: 1; pointer-events: auto; }
+  .drawer-menu {
+    position: fixed; top: 0; left: -300px; width: 300px; height: 100vh; background: #FFF;
+    box-shadow: 3px 0 15px rgba(0,0,0,0.2); z-index: 100; transition: left 0.25s ease-out;
+    display: flex; flex-direction: column;
+  }
+  .drawer-menu.open { left: 0; }
+  .drawer-header {
+    height: 50px; background: var(--header-bg); color: #FFF; display: flex; align-items: center;
+    padding: 0 16px; font-weight: 700; font-size: 15px; border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .drawer-list { list-style: none; margin: 0; padding: 10px 0; overflow-y: auto; flex: 1; }
+  .drawer-item {
+    padding: 10px 20px; font-size: 13px; font-weight: 500; color: var(--text-main); cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between; transition: background 0.12s;
+  }
+  .drawer-item:hover { background: #F0F3F6; color: var(--amber-primary); }
+  .drawer-item .icon { margin-right: 10px; font-size: 15px; width: 20px; text-align: center; }
+  .drawer-divider { height: 1px; background: #EAECEE; margin: 8px 0; }
+
+  /* Help / User Manual Left Panel (wider, detailed, scrollable with in-page TOC) */
+  .help-overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.45); z-index: 199; opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+  }
+  .help-overlay.open { opacity: 1; pointer-events: auto; }
+  .help-panel {
+    position: fixed; top: 0; left: -480px; width: 480px; max-width: 92vw; height: 100vh; background: #FFF;
+    box-shadow: 4px 0 20px rgba(0,0,0,0.25); z-index: 200; transition: left 0.28s ease-out;
+    display: flex; flex-direction: column;
+  }
+  .help-panel.open { left: 0; }
+  .help-header {
+    height: 54px; background: var(--header-bg); color: #FFF; display: flex; align-items: center;
+    justify-content: space-between; padding: 0 16px; flex-shrink: 0; border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .help-header b { font-size: 15px; }
+  .help-header .help-close-btn {
+    background: rgba(255,255,255,0.12); border: none; color: #FFF; width: 28px; height: 28px; border-radius: 6px;
+    cursor: pointer; font-size: 15px; line-height: 1;
+  }
+  .help-header .help-close-btn:hover { background: rgba(255,255,255,0.25); }
+  .help-toc {
+    flex-shrink: 0; background: #FBFBFC; border-bottom: 1px solid var(--sidebar-border);
+    padding: 10px 14px; max-height: 150px; overflow-y: auto;
+  }
+  .help-toc-title { font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .help-toc a {
+    display: inline-block; font-size: 11.5px; color: var(--amber-primary); text-decoration: none;
+    background: #FDF2E9; padding: 3px 8px; border-radius: 10px; margin: 2px 3px 2px 0;
+  }
+  .help-toc a:hover { background: var(--amber-primary); color: #FFF; }
+  .help-body { flex: 1; overflow-y: auto; padding: 6px 18px 40px; font-size: 12.5px; line-height: 1.65; color: var(--text-main); }
+  .help-body h3 {
+    font-size: 14px; color: var(--header-bg); margin: 22px 0 8px; padding-bottom: 6px;
+    border-bottom: 2px solid var(--amber-primary); scroll-margin-top: 10px;
+  }
+  .help-body h3:first-child { margin-top: 16px; }
+  .help-body h4 { font-size: 12.5px; color: var(--amber-hover); margin: 14px 0 4px; }
+  .help-body p { margin: 6px 0; }
+  .help-body ul, .help-body ol { margin: 6px 0; padding-left: 20px; }
+  .help-body li { margin: 4px 0; }
+  .help-body .kbd {
+    display: inline-block; background: #EEF2F5; border: 1px solid #D5DBE0; border-bottom-width: 2px;
+    border-radius: 4px; padding: 1px 6px; font-family: var(--font-mono); font-size: 11px; color: #34495E;
+  }
+  .help-body .tip-box {
+    background: #EAF7EE; border-left: 3px solid var(--status-completed); border-radius: 4px;
+    padding: 8px 12px; margin: 10px 0; font-size: 12px;
+  }
+  .help-body .warn-box {
+    background: #FDEDEC; border-left: 3px solid var(--status-problem); border-radius: 4px;
+    padding: 8px 12px; margin: 10px 0; font-size: 12px;
+  }
+  .help-body .note-box {
+    background: #EBF5FB; border-left: 3px solid var(--status-inprogress); border-radius: 4px;
+    padding: 8px 12px; margin: 10px 0; font-size: 12px;
+  }
+  .help-body table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 11.5px; }
+  .help-body th, .help-body td { border: 1px solid var(--sidebar-border); padding: 5px 7px; text-align: left; vertical-align: top; }
+  .help-body th { background: #F4F6F8; font-weight: 700; color: var(--text-main); }
+  .btn-icon-help {
+    background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: #FFF;
+    width: 30px; height: 30px; border-radius: 6px; cursor: pointer; font-size: 14px; margin-right: 8px;
+  }
+  .btn-icon-help:hover { background: rgba(255,255,255,0.25); }
+
+  /* Main Split View */
+  .main-split { display: flex; flex: 1; overflow: hidden; position: relative; }
+
+  /* Left Task Panel */
+  .task-sidebar {
+    width: 390px; min-width: 250px; max-width: 600px; background: var(--sidebar-bg);
+    border-right: 1px solid var(--sidebar-border); display: flex; flex-direction: column;
+    flex-shrink: 0; z-index: 10; position: relative;
+  }
+  .sidebar-header {
+    height: 42px; background: #EEF2F5; border-bottom: 1px solid var(--sidebar-border);
+    display: flex; align-items: center; justify-content: space-between; padding: 0 12px;
+    font-size: 11px; font-weight: 700; color: #576574; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .task-tree-container { flex: 1; overflow-y: auto; overflow-x: hidden; }
+
+  .task-node {
+    height: 38px; border-bottom: 1px solid #ECEFF1; display: flex; align-items: center;
+    padding: 0 6px; font-size: 12.5px; background: #FFF; transition: background 0.1s; user-select: none; position: relative;
+  }
+  .task-node:hover { background: #F4F7F9; }
+  .task-node.selected { background: #E8F4FC; }
+  .task-node.dragging { opacity: 0.4; background: #FFF9E6; }
+  .task-node.drag-over-top { border-top: 2px solid var(--amber-primary); }
+  .task-node.drag-over-bottom { border-bottom: 2px solid var(--amber-primary); }
+  .task-node.drag-over-subtask { background: #FEF9E7; outline: 2px dashed var(--amber-primary); outline-offset: -2px; }
+
+  .drag-handle {
+    cursor: grab; color: #BDC3C7; font-size: 13px; margin-right: 3px; padding: 2px; display: inline-flex; align-items: center;
+  }
+  .drag-handle:hover { color: var(--amber-primary); }
+
+  .task-indent { display: inline-block; flex-shrink: 0; }
+  .toggle-tree {
+    width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer; color: #7F8C8D; font-size: 10px; margin-right: 3px; flex-shrink: 0;
+  }
+  .toggle-tree:hover { color: var(--amber-primary); }
+  .tree-icon-status {
+    width: 16px; height: 16px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+    font-size: 10px; color: #FFF; margin-right: 5px; flex-shrink: 0; font-weight: bold;
+  }
+  .node-title {
+    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; cursor: pointer;
+  }
+  .node-type-tag {
+    font-size: 9.5px; font-weight: 700; padding: 1px 5px; border-radius: 3px; margin-left: 6px; text-transform: uppercase;
+  }
+  .type-mark { background: #FADBD8; color: #C0392B; }
+  .type-highlight { background: #D5F5E3; color: #1E8449; }
+
+  .node-actions { display: flex; align-items: center; gap: 2px; opacity: 0; transition: opacity 0.15s; }
+  .task-node:hover .node-actions { opacity: 1; }
+  .btn-node-opt {
+    background: transparent; border: none; color: #7F8C8D; cursor: pointer; font-size: 12px; padding: 2px 4px; border-radius: 3px;
+  }
+  .btn-node-opt:hover { color: var(--text-main); background: #E2E8F0; }
+
+  /* Right Timeline Panel */
+  .timeline-wrapper { flex: 1; overflow: auto; background: var(--timeline-bg); position: relative; display: flex; flex-direction: column; }
+  .timeline-header-sticky { position: sticky; top: 0; z-index: 15; background: #F8F9FA; border-bottom: 1px solid var(--sidebar-border); display: flex; flex-direction: column; }
+  .timeline-scale-row { display: flex; height: 22px; border-bottom: 1px solid var(--sidebar-border); font-size: 10.5px; font-weight: 700; color: #576574; font-family: var(--font-mono); }
+  .scale-cell { border-right: 1px solid var(--sidebar-border); display: flex; align-items: center; justify-content: center; white-space: nowrap; overflow: hidden; }
+
+  /* Info Banners (Positioned at Top Level Above Main Split View) */
+  .cp-info-banner {
+    background: #FDEDEC; border-bottom: 1px solid #FADBD8; color: #C0392B;
+    padding: 7px 16px; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: space-between;
+    z-index: 18; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+  .compare-info-banner {
+    background: #F4ECF7; border-bottom: 1px solid #D7BDE2; color: #5B2C6F;
+    padding: 7px 16px; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: space-between;
+    z-index: 18; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+
+  .timeline-body-area { position: relative; flex: 1; min-height: 100%; }
+  .grid-bg-column { position: absolute; top: 0; bottom: 0; border-right: 1px solid #F0F3F6; pointer-events: none; }
+  .grid-bg-column.weekend { background: rgba(240, 243, 246, 0.5); }
+
+  /* Gantt Bars & Badges */
+  .gantt-bar {
+    position: absolute; top: 6px; height: 26px; border-radius: 13px; background: var(--status-inprogress);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.12); display: flex; align-items: center; padding: 0 8px;
+    cursor: grab; z-index: 7; transition: transform 0.1s, box-shadow 0.1s; user-select: none;
+  }
+  .gantt-bar:active { cursor: grabbing; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+  .gantt-bar:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.2); }
+  .gantt-bar.critical { box-shadow: 0 0 0 2.5px #E74C3C, 0 3px 8px rgba(231,76,60,0.4) !important; }
+  .bar-progress-fill { position: absolute; top: 0; left: 0; bottom: 0; border-radius: 13px; background: rgba(0,0,0,0.18); pointer-events: none; }
+  .bar-content {
+    position: relative; z-index: 2; display: flex; align-items: center; gap: 6px; color: #FFF; font-size: 11px; font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px rgba(0,0,0,0.3); width: 100%; pointer-events: none;
+  }
+  .bar-state-icon {
+    width: 15px; height: 15px; border-radius: 50%; background: #FFF; display: inline-flex; align-items: center; justify-content: center;
+    font-size: 9px; flex-shrink: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  }
+
+  /* Right Edge Resizer Handle for Gantt Bar */
+  .bar-resize-handle {
+    position: absolute; right: 0; top: 0; bottom: 0; width: 10px; cursor: e-resize;
+    border-top-right-radius: 13px; border-bottom-right-radius: 13px; background: rgba(255,255,255,0.25);
+    opacity: 0; transition: opacity 0.15s; z-index: 10;
+  }
+  .gantt-bar:hover .bar-resize-handle { opacity: 1; }
+
+  /* Baseline Compare Bar - Top Tier */
+  .compare-bar {
+    position: absolute; top: 2px; height: 7px; border-radius: 3.5px;
+    background: repeating-linear-gradient(45deg, #9B59B6, #9B59B6 5px, #8E44AD 5px, #8E44AD 10px);
+    border: 1px solid #7D3C98; box-shadow: 0 1px 3px rgba(0,0,0,0.15); z-index: 8; pointer-events: auto; cursor: pointer;
+    transition: transform 0.1s;
+  }
+  .compare-bar:hover { transform: scaleY(1.3); z-index: 9; }
+
+  .gantt-milestone {
+    position: absolute; top: 9px; width: 20px; height: 20px; background: var(--status-completed);
+    transform: rotate(45deg); border-radius: 3px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); cursor: grab; z-index: 7;
+  }
+  .gantt-milestone:active { cursor: grabbing; }
+  .gantt-milestone.critical { box-shadow: 0 0 0 2.5px #E74C3C, 0 2px 5px rgba(231,76,60,0.4) !important; }
+  .milestone-label-text {
+    position: absolute; top: 10px; font-size: 11px; font-weight: 700; color: var(--text-main); white-space: nowrap; z-index: 7; pointer-events: none;
+  }
+
+  /* Vertical Markers & Highlight Bands */
+  .vertical-marker-line { position: absolute; top: 0; bottom: 0; width: 2px; z-index: 12; pointer-events: none; }
+  .today-line {
+    position: absolute; top: 0; bottom: 0; width: 2px; background: #E67E22; z-index: 13; pointer-events: none;
+    box-shadow: 0 0 4px rgba(230,126,34,0.6);
+  }
+  .today-badge {
+    position: absolute; top: 2px; transform: translateX(-50%);
+    background: #E67E22; color: #FFF; font-size: 10px; font-weight: 700; padding: 2px 7px;
+    border-radius: 4px; white-space: nowrap; z-index: 13; pointer-events: none; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+  .today-badge-triangle {
+    position: absolute; top: 22px; left: 50%; transform: translateX(-50%); width: 0; height: 0;
+    border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid #E67E22;
+  }
+  .marker-header-badge {
+    position: absolute; top: 2px; transform: translateX(-50%); font-size: 10px; font-weight: 700; color: #FFF;
+    padding: 2px 7px; border-radius: 4px; white-space: nowrap; z-index: 13; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+  .marker-header-triangle {
+    position: absolute; top: 22px; left: 50%; transform: translateX(-50%); width: 0; height: 0;
+    border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid;
+  }
+  .highlight-band-bg { position: absolute; top: 0; bottom: 0; z-index: 2; opacity: 0.18; pointer-events: none; }
+
+  /* SVG Dependency Arrows */
+  .dependency-svg-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
+  .dep-path-hit { stroke: transparent; stroke-width: 10; fill: none; pointer-events: stroke; cursor: pointer; }
+  .dep-path-hit:hover { stroke: rgba(231, 76, 60, 0.30); }
+  .temp-link-line { stroke: #2980B9; stroke-width: 2; stroke-dasharray: 5,3; fill: none; pointer-events: none; }
+  .link-handle {
+    position: absolute; width: 11px; height: 11px; border-radius: 50%; top: 50%;
+    background: #FFF; border: 2.5px solid #2980B9; z-index: 9; cursor: crosshair;
+    opacity: 0; transition: opacity 0.15s, transform 0.15s; transform: translateY(-50%);
+  }
+  .link-handle:hover { background: #2980B9; transform: translateY(-50%) scale(1.35); }
+  .link-handle-start { left: -6px; }
+  .link-handle-end { right: -6px; }
+  .link-handle-point { left: 50%; transform: translate(-50%, -50%); }
+  .link-handle-point:hover { transform: translate(-50%, -50%) scale(1.35); }
+  .gantt-bar:hover .link-handle, .gantt-milestone:hover .link-handle, body.linking-mode .link-handle { opacity: 1; }
+
+  /* S-Curve Panel */
+  .scurve-panel { border-top: 2px solid var(--header-bg); background: #FCFCFB; z-index: 10; position: relative; }
+  .scurve-title { height: 28px; background: #EEF2F5; border-bottom: 1px solid #E0E4E8; display: flex; align-items: center; padding: 0 12px; font-size: 11px; font-weight: 700; color: var(--text-main); }
+
+  /* Modal Dialog (Task Edit, Marks/Highlights, History, Working Calendar, Timescale) */
+  .modal-backdrop {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.45);
+    z-index: 200; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.15s ease;
+  }
+  .modal-backdrop.open { opacity: 1; pointer-events: auto; }
+  .modal-dialog {
+    width: 560px; max-width: 94vw; background: #FFF; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    overflow: hidden; display: flex; flex-direction: column; transform: translateY(-15px); transition: transform 0.2s ease;
+  }
+  .modal-backdrop.open .modal-dialog { transform: translateY(0); }
+
+  .modal-nav-tabs { display: flex; background: #F4F6F8; border-bottom: 1px solid #E0E4E8; padding: 0 16px; }
+  .tab-btn {
+    padding: 12px 16px; border: none; background: transparent; font-size: 13px; font-weight: 600; color: #7F8C8D;
+    cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s;
+  }
+  .tab-btn.active { color: var(--amber-primary); border-bottom-color: var(--amber-primary); background: #FFF; }
+
+  .modal-body { padding: 20px 24px; max-height: 75vh; overflow-y: auto; font-size: 13px; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .form-row { display: flex; gap: 12px; margin-bottom: 14px; align-items: center; }
+  .form-group { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  .form-label { font-size: 11px; font-weight: 700; color: #7F8C8D; text-transform: uppercase; }
+  .form-input, .form-select, .form-textarea {
+    width: 100%; padding: 7px 10px; border: 1px solid #DCDFE6; border-radius: 5px; font-size: 13px;
+    font-family: var(--font-sans); outline: none; transition: border-color 0.15s;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--amber-primary); }
+
+  .color-picker-box { display: flex; align-items: center; gap: 8px; }
+  .color-picker-box input[type="color"] { width: 34px; height: 32px; border: 1px solid #DCDFE6; border-radius: 5px; padding: 0; cursor: pointer; }
+
+  .date-calculation-row {
+    display: flex; align-items: center; gap: 8px; background: #F8F9FA; padding: 10px; border-radius: 6px; border: 1px solid #EAECEE;
+  }
+  .date-calculation-row .arrow-icon { color: #95A5A6; font-weight: bold; }
+
+  .checkbox-group { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-size: 12.5px; color: #34495E; cursor: pointer; }
+
+  .modal-footer {
+    padding: 12px 24px; background: #FAFAFA; border-top: 1px solid #E0E4E8; display: flex; align-items: center; justify-content: space-between;
+  }
+  .btn-modal {
+    padding: 8px 18px; border-radius: 6px; font-size: 13px; font-weight: 600; border: 1px solid transparent; cursor: pointer; transition: all 0.12s;
+  }
+  .btn-modal.ghost { background: transparent; color: #7F8C8D; border-color: #DCDFE6; }
+  .btn-modal.ghost:hover { background: #ECF0F1; color: var(--text-main); }
+  .btn-modal.danger { background: #FDEDEC; color: #E74C3C; border-color: #FADBD8; }
+  .btn-modal.danger:hover { background: #E74C3C; color: #FFF; }
+  .btn-modal.primary { background: var(--amber-primary); color: #FFF; }
+  .btn-modal.primary:hover { background: var(--amber-hover); }
+
+  /* Section Card inside Modal */
+  .modal-section-title { font-size: 12px; font-weight: 700; color: #34495E; text-transform: uppercase; margin: 12px 0 8px; display: flex; align-items: center; justify-content: space-between; }
+  .mh-item-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; background: #F8F9FA; padding: 8px; border-radius: 6px; border: 1px solid #EAECEE; }
+
+  .quick-shift-btn {
+    background: #E8F4FC; border: 1px solid #AED6F1; color: #2980B9; font-size: 11px; font-weight: 600;
+    padding: 4px 8px; border-radius: 4px; cursor: pointer; transition: all 0.15s;
+  }
+  .quick-shift-btn:hover { background: #3498DB; color: #FFF; }
+
+  /* Clean Full A4 Print / PDF CSS (No Shrinking, Crisp & Large) */
+  @page {
+    size: A4 landscape;
+    margin: 5mm;
+  }
+  @media print {
+    header.app-bar, .drawer-overlay, .drawer-menu, .help-overlay, .help-panel, .modal-backdrop, .node-actions, .cp-info-banner, .compare-info-banner { display: none !important; }
+    body { background: #FFF !important; color: #000 !important; overflow: visible !important; height: auto !important; width: 100% !important; font-size: 11px !important; }
+    .app-container { height: auto !important; width: 100% !important; overflow: visible !important; transform: none !important; }
+    .main-split { height: auto !important; overflow: visible !important; display: flex !important; flex-direction: row !important; }
+    .task-sidebar { width: 280px !important; min-width: 280px !important; border-right: 1.5px solid #333 !important; font-size: 11px !important; }
+    .timeline-wrapper { flex: 1 !important; overflow: visible !important; }
+    .timeline-header-sticky { position: static !important; }
+    .gantt-bar { print-color-adjust: exact; -webkit-print-color-adjust: exact; box-shadow: none !important; }
+    .gantt-milestone { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    .grid-bg-column { border-right-color: #E2E8F0 !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app-container" id="appContainer">
+  <!-- Top Header Bar -->
+  <header class="app-bar">
+    <div class="header-left">
+      <button class="btn-icon-grid" id="btnToggleDrawer" title="เปิดเมนูหลัก">☰</button>
+      <button class="btn-icon-help" id="btnOpenHelp" title="คู่มือการใช้งาน (User Manual)">❓</button>
+      <input type="text" id="projectNameInput" class="project-title-input" value="โครงการ Maintenance Audit Supplier" placeholder="พิมพ์ชื่อโครงการ...">
+    </div>
+    <div class="header-controls">
+      <button class="btn-header" id="btnOpenTimescale" title="เลือกชั้นแสดงผลไทม์สเกล (Years, Quarters, Months, Weeks, Days)">📅 Timescale Scale</button>
+
+      <div class="zoom-group">
+        <button class="zoom-btn" data-zoom="day">วัน</button>
+        <button class="zoom-btn active" data-zoom="week">สัปดาห์</button>
+        <button class="zoom-btn" data-zoom="month">เดือน</button>
+        <button class="zoom-btn" data-zoom="quarter">ไตรมาส</button>
+      </div>
+
+      <div class="date-range-bar" title="กำหนดช่วงเวลาแสดงผลบนไทม์ไลน์">
+        <span>📅</span>
+        <input type="date" id="rangeStartInput" class="range-date-input" title="วันเริ่มแสดงผล">
+        <span>→</span>
+        <input type="date" id="rangeEndInput" class="range-date-input" title="วันสิ้นสุดแสดงผล">
+        <button class="btn-header" id="btnApplyRange" style="padding:2px 6px; font-size:10.5px;" title="แสดงเฉพาะช่วงวันที่เลือก">ใช้ช่วงนี้</button>
+        <button class="btn-header" id="btnAutoRange" style="padding:2px 6px; font-size:10.5px;" title="คำนวณช่วงวันที่อัตโนมัติตามงานทั้งหมด">Auto-fit</button>
+      </div>
+
+      <button class="btn-header" id="btnOpenCalendar" title="ตั้งค่าเวลาทำงานและวันหยุดปฏิทิน">⚙️ เวลาทำงาน</button>
+      <button class="btn-header" id="btnToggleCP" title="เปิด/ปิด ไฮไลท์และคำนวณระยะเวลาเส้นทางวิกฤต CPM (Full Lag FS/SS/FF/SF)">🎯 Critical Path (CPM)</button>
+      <button class="btn-header" id="btnToggleSCurve" title="เปิด/ปิด แผงกราฟ S-Curve (Duration-Weighted)">📈 S-Curve</button>
+      <button class="btn-header" id="btnOpenMH" title="จัดการจุดหมายและแถบไฮไลท์ช่วงเวลา">📍 Marks/Highlights</button>
+      <button class="btn-header" id="btnOpenHistory" title="ดูประวัติและเทียบแผน Baseline Snapshots">📸 History</button>
+      <button class="btn-header" id="btnGoogleSync" style="background:#4285F4; color:#FFF; font-weight:700;" title="ซิงค์และบันทึกข้อมูลกับ Google Drive">🔑 Cloud Sync</button>
+      <button class="btn-header primary" id="btnQuickExport">📸 Export A4</button>
+    </div>
+  </header>
+
+  <!-- Left Drawer Menu Overlay -->
+  <div class="drawer-overlay" id="drawerOverlay"></div>
+  <div class="drawer-menu" id="drawerMenu">
+    <div class="drawer-header">📌 Project Menu</div>
+    <ul class="drawer-list">
+      <li class="drawer-item" id="menuOpenHelp"><span class="icon">📖</span> คู่มือการใช้งาน (User Manual)</li>
+      <li class="drawer-item" id="menuGoogleSync"><span class="icon">☁️</span> Google Drive Cloud Sync...</li>
+      <div class="drawer-divider"></div>
+      <li class="drawer-item" id="menuAddPlan"><span class="icon">📄</span> Create another plan...</li>
+      <li class="drawer-item" id="menuReload"><span class="icon">🔄</span> Reload Data</li>
+      <div class="drawer-divider"></div>
+      <li class="drawer-item" id="menuOpenTimescale"><span class="icon">📅</span> Timescale Scale Settings...</li>
+      <li class="drawer-item" id="menuOpenCalendar"><span class="icon">⚙️</span> Working Time Calendar...</li>
+      <li class="drawer-item" id="menuToggleCP"><span class="icon">🎯</span> Toggle Critical Path (CPM)</li>
+      <li class="drawer-item" id="menuToggleSCurve"><span class="icon">📈</span> Toggle S-Curve Chart</li>
+      <li class="drawer-item" id="menuOpenMH"><span class="icon">📍</span> Marks & Highlights...</li>
+      <li class="drawer-item" id="menuSaveVersion"><span class="icon">📸</span> Save Baseline Version...</li>
+      <li class="drawer-item" id="menuOpenHistory"><span class="icon">📜</span> Baseline History & Compare...</li>
+      <div class="drawer-divider"></div>
+      <li class="drawer-item" id="menuExportPNG"><span class="icon">🖼️</span> Export Print A4 Landscape...</li>
+      <li class="drawer-item" id="menuExportPDF"><span class="icon">🖨️</span> Export as PDF (A4)...</li>
+      <li class="drawer-item" id="menuExportCSV"><span class="icon">📊</span> Export as Excel (CSV)...</li>
+      <li class="drawer-item" id="menuExportJSON"><span class="icon">💾</span> Export as JSON...</li>
+      <li class="drawer-item" id="menuImportJSON"><span class="icon">📂</span> Import JSON / CSV...</li>
+      <div class="drawer-divider"></div>
+      <li class="drawer-item" id="menuResetSample"><span class="icon">🧹</span> Reset to Sample Plan</li>
+    </ul>
+  </div>
+
+  <!-- Help / User Manual Left Panel -->
+  <div class="help-overlay" id="helpOverlay"></div>
+  <div class="help-panel" id="helpPanel">
+    <div class="help-header">
+      <b>📖 คู่มือการใช้งาน — Maintenance Project Gantt Planner</b>
+      <button class="help-close-btn" id="btnCloseHelp">✕</button>
+    </div>
+    <div class="help-toc">
+      <div class="help-toc-title">สารบัญ (คลิกเพื่อไปยังหัวข้อ)</div>
+      <a href="#sec-overview">1. ภาพรวม</a>
+      <a href="#sec-toolbar">2. แถบเครื่องมือบน</a>
+      <a href="#sec-drawer">3. เมนูหลัก ☰</a>
+      <a href="#sec-tasklist">4. จัดการ Task (ตารางซ้าย)</a>
+      <a href="#sec-bar">5. แท่ง Gantt (ลาก/ยืด-หด)</a>
+      <a href="#sec-mark">6. Mark / Milestone / Highlight</a>
+      <a href="#sec-dependency">7. เชื่อม Dependency</a>
+      <a href="#sec-cpm">8. Critical Path (CPM)</a>
+      <a href="#sec-scurve">9. S-Curve</a>
+      <a href="#sec-baseline">10. Baseline & Compare</a>
+      <a href="#sec-timescale">11. Timescale</a>
+      <a href="#sec-calendar">12. เวลาทำงาน/วันหยุด</a>
+      <a href="#sec-zoom">13. Zoom & ช่วงวันที่</a>
+      <a href="#sec-io">14. Import / Export / พิมพ์</a>
+      <a href="#sec-limit">15. ข้อจำกัดที่ควรรู้</a>
+      <a href="#sec-faq">16. คำถามที่พบบ่อย</a>
+    </div>
+    <div class="help-body" id="helpBodyContent">
+
+      <h3 id="sec-overview">1. ภาพรวมแอปพลิเคชัน</h3>
+      <p>เครื่องมือนี้เป็น <b>Gantt Chart Planner แบบไฟล์ HTML เดี่ยว</b> ทำงาน <b>Offline 100% บนเบราว์เซอร์</b> ไม่ต้องติดตั้งโปรแกรมหรือเชื่อมต่อ Cloud ข้อมูลทั้งหมดถูกบันทึกอัตโนมัติไว้ใน <b>localStorage ของเบราว์เซอร์เครื่องนี้เท่านั้น</b></p>
+      <div class="warn-box">⚠️ <b>สำคัญ:</b> ข้อมูลผูกกับเบราว์เซอร์/โปรไฟล์เดียว ไม่ sync ข้ามเครื่อง — แนะนำให้ <b>Export เป็น JSON เก็บสำรองเป็นระยะ</b> (ดูหัวข้อ 14)</div>
+      <p>โครงสร้างหน้าจอหลักแบ่งเป็น 2 ฝั่ง:</p>
+      <ul>
+        <li><b>ฝั่งซ้าย (Sidebar):</b> รายการ Task แบบ Tree เรียงตามลำดับ</li>
+        <li><b>ฝั่งขวา (Gantt Chart):</b> แสดงแท่งงานตามไทม์ไลน์ พร้อมเส้นเชื่อม Dependency</li>
+      </ul>
+      <p>ทั้งสองฝั่งเลื่อน (scroll) พร้อมกันเสมอ และหัวตารางจะปรับความสูงอัตโนมัติตามจำนวนชั้น Timescale ที่เปิดใช้งาน</p>
+
+      <h3 id="sec-toolbar">2. แถบเครื่องมือด้านบน (Toolbar)</h3>
+      <table>
+        <tr><th>ปุ่ม</th><th>หน้าที่</th></tr>
+        <tr><td>☰</td><td>เปิดเมนูหลัก (Drawer) — รวมฟังก์ชัน Import/Export, Reset ฯลฯ</td></tr>
+        <tr><td>❓</td><td>เปิดคู่มือการใช้งานนี้</td></tr>
+        <tr><td>ช่องชื่อโครงการ</td><td>พิมพ์แก้ชื่อโครงการได้โดยตรง จะถูกบันทึกอัตโนมัติ</td></tr>
+        <tr><td>📅 Timescale Scale</td><td>เลือกเปิด/ปิดชั้นแสดงผลปฏิทิน (Years/Quarters/Months/Weeks/Days) — ดูหัวข้อ 11</td></tr>
+        <tr><td>วัน / สัปดาห์ / เดือน / ไตรมาส</td><td>ปุ่ม Zoom ปรับความกว้างของ 1 วันบน Gantt Chart อย่างรวดเร็ว</td></tr>
+        <tr><td>ช่วงวันที่ + ใช้ช่วงนี้ / Auto-fit</td><td>กำหนดกรอบวันที่ที่ต้องการโฟกัสดู หรือให้ระบบคำนวณช่วงอัตโนมัติจาก Task ทั้งหมด</td></tr>
+        <tr><td>⚙️ เวลาทำงาน</td><td>ตั้งค่าเวลาเริ่ม-เลิกงาน, เวลาพัก, วันทำงานต่อสัปดาห์ — ดูหัวข้อ 12</td></tr>
+        <tr><td>🎯 Critical Path (CPM)</td><td>เปิด/ปิดการไฮไลท์เส้นทางวิกฤต — ดูหัวข้อ 8</td></tr>
+        <tr><td>📈 S-Curve</td><td>เปิด/ปิดกราฟความก้าวหน้าสะสม — ดูหัวข้อ 9</td></tr>
+        <tr><td>📍 Marks/Highlights</td><td>จัดการจุดหมาย/แถบไฮไลท์ทั้งหมดในโครงการ</td></tr>
+        <tr><td>📸 History</td><td>ดูประวัติ Baseline และเปรียบเทียบแผน — ดูหัวข้อ 10</td></tr>
+        <tr><td>📸 Export A4</td><td>สั่งพิมพ์/บันทึกเป็น PDF ขนาด A4 แนวนอนทันที</td></tr>
+      </table>
+
+      <h3 id="sec-drawer">3. เมนูหลัก ☰ (Drawer Menu)</h3>
+      <p>คลิกไอคอน <span class="kbd">☰</span> มุมซ้ายบนเพื่อเปิดเมนู รวมฟังก์ชันที่ไม่ได้ใช้บ่อยเท่า Toolbar:</p>
+      <ul>
+        <li><b>📖 คู่มือการใช้งาน</b> — เปิดหน้าต่างนี้</li>
+        <li><b>📄 Create another plan...</b> — ล้างหน้าจอเริ่มแผนใหม่ (ระบบจะเตือนให้ Export สำรองก่อนเสมอ)</li>
+        <li><b>🔄 Reload Data</b> — โหลดข้อมูลล่าสุดจาก localStorage ซ้ำ</li>
+        <li><b>📅 Timescale / ⚙️ Working Calendar</b> — ทางลัดเดียวกับปุ่มบน Toolbar</li>
+        <li><b>🎯 Toggle Critical Path / 📈 Toggle S-Curve</b> — ทางลัดเปิด-ปิด</li>
+        <li><b>📍 Marks & Highlights...</b></li>
+        <li><b>📸 Save Baseline Version...</b> — บันทึก Snapshot แผนปัจจุบันเก็บไว้เทียบภายหลัง</li>
+        <li><b>📜 Baseline History & Compare...</b></li>
+        <li><b>🖼️/🖨️ Export Print A4 / PDF</b> — สั่งพิมพ์</li>
+        <li><b>📊 Export as Excel (CSV)</b> — ออกไฟล์ตารางสรุป Task</li>
+        <li><b>💾 Export as JSON</b> — สำรองข้อมูลทั้งหมด (Task + Baseline + Calendar + Timescale)</li>
+        <li><b>📂 Import JSON / CSV</b> — โหลดไฟล์ที่เคย Export กลับเข้ามา</li>
+        <li><b>🧹 Reset to Sample Plan</b> — ล้างกลับไปใช้ข้อมูลตัวอย่างเริ่มต้น</li>
+      </ul>
+
+      <h3 id="sec-tasklist">4. จัดการ Task ในตารางฝั่งซ้าย</h3>
+      <h4>เพิ่ม Task</h4>
+      <p>คลิกปุ่ม <span class="kbd">+ Task</span> มุมขวาบนของตาราง เพื่อเพิ่ม Task ใหม่ที่ระดับบนสุด</p>
+      <h4>แก้ไข Task</h4>
+      <p>คลิกที่ชื่อ Task หรือไอคอนดินสอ (ปรากฏเมื่อ hover แถว) เพื่อเปิดหน้าต่างแก้ไขรายละเอียด: ชื่อ, ประเภท, สี, วันที่เริ่ม-จบ, จำนวนวันทำงาน, สถานะ, Progress %, ผู้รับผิดชอบ, Predecessors และหมายเหตุ</p>
+      <div class="tip-box">💡 ระหว่างแก้ไขในหน้าต่าง (Modal) ระบบจะ <b>แสดงตัวอย่างการเปลี่ยนแปลงบน Gantt แบบสด (Live Preview)</b> ทันทีที่พิมพ์ — ถ้ากด <span class="kbd">Cancel</span> ระบบจะคืนค่าดั้งเดิมให้อัตโนมัติ ถ้ากด <span class="kbd">Save</span> จึงจะบันทึกจริง</div>
+      <h4>สร้าง Sub-task</h4>
+      <p>ทำได้ 2 วิธี:</p>
+      <ol>
+        <li><b>ลาก & วาง (Drag & Drop):</b> ลากแถว Task ไปวางตรงกึ่งกลาง (25%-75%) ของแถว Task เป้าหมาย เพื่อทำเป็น Sub-task ของแถวนั้น</li>
+        <li><b>ปุ่มลัด:</b> ใช้ปุ่ม <span class="kbd">⇥</span> (Indent — ทำเป็น Sub-task ของแถวด้านบน) และ <span class="kbd">⇤</span> (Outdent — ยกออกมาเป็นระดับบน) ที่ปรากฏเมื่อ hover แถว</li>
+      </ol>
+      <h4>Progress Mode</h4>
+      <ul>
+        <li><b>Manual:</b> กรอกเปอร์เซ็นต์ความก้าวหน้าเอง (ระบบจำกัดค่าไว้ที่ 0-100% เสมอ พิมพ์เกินจะถูกปรับให้อัตโนมัติ)</li>
+        <li><b>Auto (Rollup):</b> คำนวณ % จากค่าเฉลี่ยของ Sub-task ทั้งหมดโดยอัตโนมัติ — เลือกในหน้าต่างแก้ไข Task</li>
+      </ul>
+      <h4>ซ่อน / ลบ</h4>
+      <p>ใช้ไอคอน 👁 (ซ่อนเฉพาะรายการฝั่งซ้าย — เส้น/แถบยังแสดงบน Gantt ตามปกติ, เฉพาะประเภท Mark/Highlight) หรือไอคอนถังขยะเพื่อลบ Task ออกถาวร</p>
+
+      <h3 id="sec-bar">5. การทำงานกับแท่ง Gantt</h3>
+      <ul>
+        <li><b>ลากย้ายวัน:</b> คลิกค้างที่ตัวแท่ง แล้วลากซ้าย-ขวา เพื่อเลื่อนวันเริ่ม-จบทั้งชุด</li>
+        <li><b>ยืด/หดระยะเวลา:</b> ลากที่ขอบขวาของแท่ง (เคอร์เซอร์เปลี่ยนเป็นลูกศรปรับขนาด)</li>
+        <li><b>ดับเบิลคลิก:</b> เปิดหน้าต่างแก้ไขรายละเอียด Task นั้นทันที</li>
+        <li><b>Hover ที่แท่ง:</b> จะเห็น Tooltip แสดงชื่อ, %, ช่วงวันที่ และจุดลาก Dependency (วงกลมเล็กหัว-ท้ายแท่ง)</li>
+      </ul>
+      <div class="note-box">ℹ️ ความกว้างของแท่งคำนวณแบบนับวันปฏิทินรวมทั้งวันเริ่มและวันจบ (Inclusive) เช่น เริ่ม-จบวันเดียวกัน = 1 วัน</div>
+
+      <h3 id="sec-mark">6. Mark / Milestone / Highlight</h3>
+      <table>
+        <tr><th>ประเภท</th><th>ลักษณะ</th><th>การใช้งาน</th></tr>
+        <tr><td>♦️ Milestone</td><td>จุดสำคัญวันเดียว รูปสี่เหลี่ยมข้าวหลามตัด</td><td>ใช้แทนจุดตรวจรับ/ส่งมอบงาน เชื่อม Dependency ได้เหมือน Task ปกติ</td></tr>
+        <tr><td>📍 Mark</td><td>เส้นแนวตั้งชี้วันสำคัญ วันเดียว</td><td>ใช้ทำ "วันนี้", วันประชุม ฯลฯ</td></tr>
+        <tr><td>🟩 Highlight</td><td>แถบสีคลุมช่วงวันที่บนพื้นหลัง Gantt</td><td>ใช้เน้นช่วงเวลาพิเศษ เช่น ช่วงหยุดโรงงาน</td></tr>
+      </table>
+      <p>จัดการทั้งหมดได้จากปุ่ม <span class="kbd">📍 Marks/Highlights</span> บน Toolbar — เพิ่ม/แก้ไข/ลบ/ซ่อนเฉพาะฝั่งตารางซ้ายได้จากหน้าต่างเดียว</p>
+
+      <h3 id="sec-dependency">7. การเชื่อม Dependency (Predecessor)</h3>
+      <h4>วิธีที่ 1 — ลากเมาส์สร้างเส้นบน Gantt (แนะนำ)</h4>
+      <ol>
+        <li>เอาเมาส์ไป Hover ที่แท่งงานต้นทาง จะเห็นจุดวงกลมเล็กปรากฏที่ขอบซ้าย (Start) และขอบขวา (Finish)</li>
+        <li>คลิกค้างที่จุดวงกลม แล้วลากไปปล่อยบนจุดวงกลมของแท่งงานปลายทาง</li>
+        <li>ระบบจะกำหนดประเภทเส้นอัตโนมัติตามจุดที่ลาก-ปล่อย:</li>
+      </ol>
+      <table>
+        <tr><th>ลากจาก</th><th>ปล่อยที่</th><th>ประเภท</th><th>ความหมาย</th></tr>
+        <tr><td>Finish (ขวา)</td><td>Start (ซ้าย)</td><td><b>FS</b></td><td>งานปลายทางเริ่มได้หลังงานต้นทางจบ (พบบ่อยที่สุด)</td></tr>
+        <tr><td>Start (ซ้าย)</td><td>Start (ซ้าย)</td><td><b>SS</b></td><td>เริ่มพร้อมกัน</td></tr>
+        <tr><td>Finish (ขวา)</td><td>Finish (ขวา)</td><td><b>FF</b></td><td>จบพร้อมกัน</td></tr>
+        <tr><td>Start (ซ้าย)</td><td>Finish (ขวา)</td><td><b>SF</b></td><td>พบน้อย ใช้ในกรณีพิเศษ</td></tr>
+      </table>
+      <h4>วิธีที่ 2 — พิมพ์ในช่อง Predecessors</h4>
+      <p>ในหน้าต่างแก้ไข Task พิมพ์รูปแบบ <span class="kbd">รหัสงานตามด้วยประเภท</span> คั่นด้วยจุลภาค เช่น <span class="kbd">3FS, 5SS</span></p>
+      <h4>ลบเส้น Dependency</h4>
+      <p>คลิกที่เส้นบน Gantt Chart (มีพื้นที่คลิกกว้างกว่าเส้นที่มองเห็น เพื่อให้คลิกง่าย) แล้วยืนยันในกล่องที่ปรากฏขึ้น</p>
+      <div class="warn-box">⚠️ <b>ป้องกันวนลูป (Circular Dependency):</b> ระบบจะบล็อกและแจ้งเตือนทันที ถ้าการเชื่อมเส้นใหม่จะทำให้เกิดการอ้างอิงวนกลับมาที่ตัวเอง (เช่น A ต้องรอ B และ B ต้องรอ A) ไม่ว่าจะสร้างด้วยการลากหรือพิมพ์ก็ตาม</div>
+
+      <h3 id="sec-cpm">8. Critical Path (CPM)</h3>
+      <p>กดปุ่ม <span class="kbd">🎯 Critical Path (CPM)</span> เพื่อเปิด/ปิดการคำนวณ:</p>
+      <ul>
+        <li>ระบบคำนวณ Forward Pass (ES/EF) และ Backward Pass (LS/LF) ของทุก Task ตาม Dependency ที่เชื่อมไว้ รองรับ Lag ครบ 4 แบบ (FS/SS/FF/SF)</li>
+        <li>Task ที่มี <b>Total Float = 0</b> จะถูกไฮไลท์เป็นสีแดง ทั้งแท่งงานและเส้นเชื่อม — คือ "เส้นทางวิกฤต" ที่หากล่าช้าจะกระทบวันจบโครงการทันที</li>
+        <li>แถบข้อมูล (Banner) ด้านบนจะสรุประยะเวลารวมของเส้นทางวิกฤตและจำนวนงานวิกฤตให้ทันที</li>
+      </ul>
+
+      <h3 id="sec-scurve">9. S-Curve (กราฟความก้าวหน้าสะสม)</h3>
+      <p>กดปุ่ม <span class="kbd">📈 S-Curve</span> เพื่อแสดงแผงกราฟด้านล่าง Gantt Chart คำนวณความก้าวหน้าสะสมแบบ <b>Duration-Weighted</b> (ถ่วงน้ำหนักตามจำนวนวันทำงานจริงของแต่ละ Task) สะท้อนภาพรวมความคืบหน้าของทั้งโครงการได้แม่นยำกว่าการเฉลี่ย % แบบธรรมดา</p>
+
+      <h3 id="sec-baseline">10. Baseline Version & Compare</h3>
+      <h4>บันทึก Baseline</h4>
+      <p>เมนู ☰ → <span class="kbd">📸 Save Baseline Version...</span> เพื่อบันทึก Snapshot วันที่เริ่ม-จบ (Target) ของทุก Task ในขณะนั้น ตั้งชื่อ Version ได้เอง</p>
+      <h4>เปรียบเทียบ</h4>
+      <p>เมนู ☰ → <span class="kbd">📜 Baseline History & Compare...</span> เลือก Version ที่ต้องการแล้วกด <span class="kbd">👁 เทียบ</span> — Gantt Chart จะแสดงแถบสีม่วงบาง (แผน Baseline) ซ้อนอยู่เหนือแถบสีปกติ (แผนปัจจุบัน) ของทุก Task ให้เห็นความต่างทันที กดปุ่ม <span class="kbd">✕ ยกเลิกการเทียบ</span> บนแถบแจ้งเตือนเพื่อออกจากโหมดนี้</p>
+      <p>ปุ่ม <span class="kbd">⤴ Restore</span> ใช้ดึงวันที่จาก Baseline นั้นกลับมาใช้เป็นแผนปัจจุบัน และ <span class="kbd">✕</span> ใช้ลบ Baseline ที่ไม่ต้องการ</p>
+      <div class="note-box">ℹ️ ถ้า Task ใดไม่มีอยู่ใน Baseline ที่เลือกเทียบ (เช่น เพิ่ง Task เพิ่มทีหลัง) ระบบจะข้ามไม่แสดงแถบเทียบให้ Task นั้นเฉยๆ ไม่ error</div>
+
+      <h3 id="sec-timescale">11. ตั้งค่า Timescale (ชั้นแสดงผลปฏิทิน)</h3>
+      <p>ปุ่ม <span class="kbd">📅 Timescale Scale</span> เปิดหน้าต่างเลือกเปิด/ปิดแต่ละชั้นอิสระ: <b>Years, Quarters, Months, Weeks, Days</b> — เลือกได้ตั้งแต่ 1 ถึง 5 ชั้นพร้อมกัน ความสูงหัวตารางทั้งฝั่งซ้ายและขวาจะปรับให้ตรงกันอัตโนมัติเสมอไม่ว่าจะเลือกกี่ชั้นก็ตาม</p>
+
+      <h3 id="sec-calendar">12. เวลาทำงานและวันหยุด (Working Calendar)</h3>
+      <p>ปุ่ม <span class="kbd">⚙️ เวลาทำงาน</span> ใช้กำหนด:</p>
+      <ul>
+        <li>วันทำงานประจำสัปดาห์ (เช่น จันทร์-ศุกร์)</li>
+        <li>เวลาเริ่ม-เลิกงาน และเวลาพัก (Break Time)</li>
+      </ul>
+      <p>ค่านี้ถูกใช้คำนวณ "จำนวนวันทำงาน (Weekdays)" ในหน้าต่างแก้ไข Task และการคำนวณ CPM ที่จะข้ามวันหยุดโดยอัตโนมัติ</p>
+
+      <h3 id="sec-zoom">13. Zoom และช่วงวันที่แสดงผล</h3>
+      <p>ใช้ปุ่ม <span class="kbd">วัน/สัปดาห์/เดือน/ไตรมาส</span> เพื่อปรับความกว้างต่อวันอย่างรวดเร็ว หรือกำหนดช่วงวันที่ต้องการโฟกัสในกล่อง "ช่วงวันที่" แล้วกด <span class="kbd">ใช้ช่วงนี้</span> — กด <span class="kbd">Auto-fit</span> เพื่อให้ระบบคำนวณช่วงที่ครอบคลุม Task ทั้งหมดให้อัตโนมัติ</p>
+
+      <h3 id="sec-io">14. Import / Export / พิมพ์เอกสาร</h3>
+      <table>
+        <tr><th>ฟังก์ชัน</th><th>รายละเอียด</th></tr>
+        <tr><td>💾 Export as JSON</td><td>สำรองข้อมูลครบทุกส่วน (Task, Baseline History, Working Calendar, Timescale) — ใช้ไฟล์นี้ Import กลับเพื่อย้ายเครื่อง/สำรองข้อมูล</td></tr>
+        <tr><td>📂 Import JSON / CSV</td><td>โหลดไฟล์ JSON ที่เคย Export กลับเข้าระบบ (แทนที่ข้อมูลปัจจุบันทั้งหมด)</td></tr>
+        <tr><td>📊 Export as Excel (CSV)</td><td>ออกไฟล์ตารางสรุป (ชื่อ, สถานะ, วันที่, % ,ผู้รับผิดชอบ) เปิดได้ด้วย Excel</td></tr>
+        <tr><td>🖨️ Export A4 / PDF</td><td>สั่งพิมพ์หรือ "บันทึกเป็น PDF" ผ่านหน้าต่างพิมพ์ของเบราว์เซอร์ จัดหน้ากระดาษ A4 แนวนอนพอดีอัตโนมัติ</td></tr>
+      </table>
+      <div class="warn-box">⚠️ <b>Import จะเขียนทับข้อมูลปัจจุบันทั้งหมด</b> — แนะนำ Export สำรองไฟล์เดิมก่อนทุกครั้งที่จะ Import</div>
+
+      <h3 id="sec-limit">15. ข้อจำกัดที่ควรรู้</h3>
+      <ul>
+        <li>ข้อมูลอยู่ใน localStorage ของ <b>เบราว์เซอร์/เครื่องเดียว</b> เท่านั้น ไม่ sync ข้ามอุปกรณ์ — ควร Export JSON สำรองเป็นระยะ โดยเฉพาะก่อนล้าง Cache เบราว์เซอร์หรือเปลี่ยนเครื่อง</li>
+        <li>การแก้ไขในหน้าต่าง Modal จะแสดงผลสดบน Gantt ทันที — หากมี Task จำนวนมาก (หลักร้อยขึ้นไป) การพิมพ์อาจมีอาการหน่วงเล็กน้อยขณะพิมพ์เร็วๆ</li>
+        <li>บนหน้าจอขนาดเล็ก จุดลาก Dependency ของ Milestone (Start/Finish) อยู่ใกล้กันมาก อาจต้องซูมหรือคลิกอย่างระมัดระวัง</li>
+      </ul>
+
+      <h3 id="sec-faq">16. คำถามที่พบบ่อย (FAQ)</h3>
+      <p><b>Q: ข้อมูลหายหลังปิดเบราว์เซอร์ ทำอย่างไร?</b><br>A: ตรวจสอบว่าเปิดไฟล์ HTML เดิม (path เดิม) ในเบราว์เซอร์เดิมที่เคยบันทึกไว้ และไม่ได้เปิดโหมด Incognito/Private ซึ่งจะไม่บันทึก localStorage ถาวร</p>
+      <p><b>Q: ทำไมลากสร้างเส้น Dependency ไม่ติด?</b><br>A: ต้องลากเริ่มจากจุดวงกลมที่ขอบแท่งงานเท่านั้น (ไม่ใช่ตัวแท่งเอง) และปล่อยเมาส์ให้ตรงจุดวงกลมของแท่งปลายทางพอดี</p>
+      <p><b>Q: ทำไมบันทึก Dependency ไม่ได้ ขึ้นเตือน Circular Dependency?</b><br>A: การเชื่อมที่พยายามทำจะทำให้เกิดการอ้างอิงวนกลับมาที่งานเดิม ให้ตรวจสอบสายงานที่มีอยู่แล้วก่อนเชื่อมใหม่</p>
+      <p><b>Q: พิมพ์ออกมาแล้วตัวเล็ก/ไม่พอดีหน้ากระดาษ?</b><br>A: ตรวจสอบว่าตั้งค่าเครื่องพิมพ์เป็น A4 แนวนอน (Landscape) และปิดตัวเลือก "Scale/Fit to page" ของเบราว์เซอร์ เพราะระบบจัดขนาดให้พอดีอัตโนมัติอยู่แล้ว</p>
+
+    </div>
+  </div>
+
+  <!-- Top Level Info Banners (App-wide) -->
+  <div class="cp-info-banner" id="cpInfoBanner" style="display:none;"></div>
+  <div class="compare-info-banner" id="compareInfoBanner" style="display:none;"></div>
+
+  <!-- Main Split Layout -->
+  <div class="main-split">
+    <!-- Left Sidebar: Task Tree -->
+    <div class="task-sidebar">
+      <div class="sidebar-header" id="sidebarHeaderEl">
+        <span>Task Name (ลาก ⋮⋮ สลับ/ทำ Sub-task)</span>
+        <button class="btn-node-opt" id="btnAddTopTask" style="font-weight:bold; color:var(--amber-primary);" title="เพิ่ม Task ใหม่">+ Task</button>
+      </div>
+      <div class="task-tree-container" id="taskTreeContainer"></div>
+    </div>
+
+    <!-- Right Timeline: Gantt View -->
+    <div class="timeline-wrapper" id="timelineWrapper">
+      <div class="timeline-header-sticky" id="timelineHeaderSticky"></div>
+      <div class="timeline-body-area" id="timelineBodyArea">
+        <svg class="dependency-svg-layer" id="dependencySvg"></svg>
+      </div>
+      <div id="scurveContainer"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Google Drive Cloud Sync Modal Dialog -->
+<div class="modal-backdrop" id="googleDriveModal">
+  <div class="modal-dialog" style="width:540px;">
+    <div class="modal-nav-tabs">
+      <button class="tab-btn active">☁️ Google Drive Cloud Sync (GitHub & Vercel Online)</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:#E8F8F5; border:1px solid #A3E4D7; color:#16A085; padding:10px 12px; border-radius:6px; font-size:12px; margin-bottom:14px; line-height:1.4;">
+        💡 <b>หากต้องการใช้งานแบบ Offline บนเครื่อง (ไม่ต้องซิงค์ Google Drive):</b><br>
+        ไม่ต้อง Sign in ครับ! ให้กดปุ่ม <b>"ปิด"</b> ด้านล่าง แล้วใช้งานได้ทันที ระบบจะ Auto-Save แผนงานลงเครื่อง (LocalStorage) ให้อัตโนมัติ 100%
+      </div>
+
+      <div style="font-size:13px; color:#34495E; margin-bottom:14px; line-height:1.5;">
+        เชื่อมต่อและบันทึกข้อมูลแผนงานโครงการลงบน <b>Google Drive</b> ของคุณเองโดยตรง เพื่อซิงค์และเปิดใช้งานข้ามเครื่องผ่าน Vercel / GitHub ได้ทุกที่:
+      </div>
+      
+      <div class="date-calculation-row" style="margin-bottom:14px; justify-content:space-between; align-items:center; background:#EBF5FB; border-color:#AED6F1;">
+        <div><b>สถานะการล็อกอิน:</b> <span id="gdriveAuthStatus" style="color:#C0392B; font-weight:700;">ยังไม่ได้ล็อกอิน</span></div>
+        <button class="btn-modal primary" id="btnGDriveLogin" style="padding:6px 14px; font-size:12px; background:#4285F4;">🔑 Sign in with Google</button>
+      </div>
+
+      <div class="form-group" style="margin-bottom:14px;">
+        <label class="form-label">Google OAuth Client ID (สำหรับ Web App Host)</label>
+        <input type="text" class="form-input" id="gdriveClientId" placeholder="ป้อน Google OAuth Client ID..." value="">
+        <div style="font-size:11px; color:#7F8C8D; margin-top:4px;">* ใช้สำหรับการล็อกอินเข้าถึง Google Drive API v3 (สิทธิ์จำกัดเฉพาะไฟล์ที่แอปสร้างขึ้นเอง <code>drive.file</code>)</div>
+      </div>
+
+      <div class="modal-section-title">📂 ไฟล์แผนงานโครงการบน Google Drive</div>
+      <div id="gdriveFileList" style="max-height:160px; overflow-y:auto; border:1px solid #E0E4E8; border-radius:6px; padding:10px; font-size:12.5px; background:#FAFAFA;">
+        <div style="color:#7F8C8D; text-align:center; padding:12px;">กดปุ่ม Sign in with Google เพื่อดึงรายการไฟล์</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-modal ghost" id="btnCloseGDriveModal">ปิด</button>
+      <div style="display:flex; gap:8px;">
+        <button class="btn-modal primary" id="btnSaveToGDrive" style="background:#27AE60;">💾 Save to Google Drive</button>
+        <button class="btn-modal primary" id="btnLoadFromGDrive">📂 Load from Drive</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Timescale Settings Modal Dialog -->
+<div class="modal-backdrop" id="timescaleModal">
+  <div class="modal-dialog" style="width:400px;">
+    <div class="modal-nav-tabs">
+      <button class="tab-btn active">📅 Timescale Scale Display Settings</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px; color:#7F8C8D; margin-bottom:12px;">เลือกเปิด/ปิด ชั้นแสดงผลของแกนเวลา (เรียงจากบนลงล่าง):</div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <label class="checkbox-group"><input type="checkbox" id="tsYears" checked> <b>Years (ปี)</b> — แสดง พ.ศ.(ค.ศ.) เช่น 2569 (2026)</label>
+        <label class="checkbox-group"><input type="checkbox" id="tsQuarters" checked> <b>Quarters (ไตรมาส)</b> — แสดง Q1, Q2, Q3, Q4</label>
+        <label class="checkbox-group"><input type="checkbox" id="tsMonths" checked> <b>Months (เดือน)</b> — แสดงชื่อเดือนอย่างเดียว เช่น ม.ค., ก.พ.</label>
+        <label class="checkbox-group"><input type="checkbox" id="tsWeeks" checked> <b>Weeks (สัปดาห์)</b> — แสดงสัปดาห์ เช่น W1, W2, W3</label>
+        <label class="checkbox-group"><input type="checkbox" id="tsDays" checked> <b>Days (วัน)</b> — แสดงหมายเลขวัน 01..31</label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <div></div>
+      <button class="btn-modal primary" id="btnCloseTsModal">Apply Scale</button>
+    </div>
+  </div>
+</div>
+
+<!-- Task Detail Modal Popup Dialog -->
+<div class="modal-backdrop" id="taskModal">
+  <div class="modal-dialog">
+    <div class="modal-nav-tabs">
+      <button class="tab-btn active" data-tab="general">General</button>
+      <button class="tab-btn" data-tab="description">Description</button>
+      <button class="tab-btn" data-tab="resources">Resources</button>
+      <button class="tab-btn" data-tab="attachment">Attachment</button>
+    </div>
+
+    <div class="modal-body">
+      <!-- General Tab -->
+      <div class="tab-content active" id="tabGeneral">
+        <div class="form-row">
+          <div class="form-group color-picker-box" style="flex:0 0 60px;">
+            <label class="form-label">Color</label>
+            <input type="color" id="modalColor" value="#3498DB">
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label class="form-label">Label / Task Name</label>
+            <input type="text" class="form-input" id="modalName" placeholder="ระบุชื่อ Task...">
+          </div>
+          <div class="form-group" style="flex:0 0 150px;">
+            <label class="form-label">Type (ประเภทรายการ)</label>
+            <select class="form-select" id="modalType">
+              <option value="task">📦 Task (งานทั่วไป)</option>
+              <option value="milestone">♦️ Milestone (จุดส่งมอบ)</option>
+              <option value="mark">📍 Mark (จุดหมายแนวตั้ง)</option>
+              <option value="highlight">🎨 Highlight (แถบช่วงเวลา)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="date-calculation-row">
+          <div class="form-group" id="groupStart">
+            <label class="form-label" id="labelStart">Start Date</label>
+            <input type="date" class="form-input" id="modalStart">
+          </div>
+          <span class="arrow-icon date-arrow-icon" id="arrow1">→</span>
+          <div class="form-group" id="groupWeekdays" style="flex:0 0 90px;">
+            <label class="form-label">WORKDAYS</label>
+            <input type="number" class="form-input" id="modalWeekdays" min="0" value="1">
+          </div>
+          <span class="arrow-icon date-arrow-icon" id="arrow2">→</span>
+          <div class="form-group" id="groupEnd">
+            <label class="form-label">End Date</label>
+            <input type="date" class="form-input" id="modalEnd">
+          </div>
+        </div>
+
+        <label class="checkbox-group" id="groupHideItem" style="margin-top:10px; background:#FEF9E7; padding:6px 10px; border-radius:6px; border:1px solid #F9E79F; display:none;">
+          <input type="checkbox" id="modalHideItem">
+          👁️ <b>Hide this item from view</b> (ซ่อนรายการนี้ออกจากไทม์ไลน์และตารางรายการซ้าย)
+        </label>
+
+        <label class="checkbox-group" id="groupRollup" style="margin-top:10px;">
+          <input type="checkbox" id="modalRollup">
+          Determine dates and progress from child items (🔒 Rollup)
+        </label>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">State Icon</label>
+            <select class="form-select" id="modalStatus">
+              <option value="none">⚪ None (ยังไม่เริ่มดำเนินการ)</option>
+              <option value="inprogress">🟠 In Progress (กำลังดำเนินการ)</option>
+              <option value="completed">🟢 Completed (เสร็จสิ้น)</option>
+              <option value="delay">🟡 Delay (ล่าช้ากว่าแผน)</option>
+              <option value="problem">🔴 Problem (มีปัญหาติดขัด)</option>
+              <option value="cancelled">⚪ Cancelled (ยกเลิก)</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:0 0 120px;">
+            <label class="form-label">Progress (%)</label>
+            <input type="number" class="form-input" id="modalProgress" min="0" max="100" step="5" value="0">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Predecessors (Pred IDs & Full Lag e.g. 1FS, 2SS, 3FF, 4SF)</label>
+            <input type="text" class="form-input" id="modalDeps" placeholder="1FS, 2SS">
+          </div>
+        </div>
+      </div>
+
+      <!-- Description Tab -->
+      <div class="tab-content" id="tabDescription">
+        <div class="form-group">
+          <label class="form-label">Task Notes & Instructions</label>
+          <textarea class="form-textarea" id="modalDesc" rows="6" placeholder="พิมพ์รายละเอียดงานหรือบันทึกเพิ่มเติม..."></textarea>
+        </div>
+      </div>
+
+      <!-- Resources Tab -->
+      <div class="tab-content" id="tabResources">
+        <div class="form-group">
+          <label class="form-label">Assigned Owner / Team</label>
+          <input type="text" class="form-input" id="modalOwner" placeholder="เช่น วิศวกรซ่อมบำรุง / ทีม Audit">
+        </div>
+      </div>
+
+      <!-- Attachment Tab -->
+      <div class="tab-content" id="tabAttachment">
+        <div class="form-group">
+          <label class="form-label">Reference Link / Document URL</label>
+          <input type="text" class="form-input" id="modalAttachment" placeholder="https://...">
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-modal danger" id="btnModalDelete">🗑️ Delete Task</button>
+      <div style="display:flex; gap:8px;">
+        <button class="btn-modal ghost" id="btnModalCancel">Cancel</button>
+        <button class="btn-modal primary" id="btnModalSave">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Working Calendar Modal Dialog -->
+<div class="modal-backdrop" id="calendarModal">
+  <div class="modal-dialog">
+    <div class="modal-nav-tabs">
+      <button class="tab-btn active">⚙️ Working Time Calendar Settings</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section-title">กำหนดเวลาทำงานปกติ (Working Hours)</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">เวลาเริ่มทำงาน</label>
+          <input type="time" class="form-input" id="calStartTime" value="08:00">
+        </div>
+        <span class="arrow-icon">→</span>
+        <div class="form-group">
+          <label class="form-label">ถึง เวลาเลิกงาน</label>
+          <input type="time" class="form-input" id="calEndTime" value="17:30">
+        </div>
+      </div>
+
+      <div class="modal-section-title" style="margin-top:14px;">กำหนดช่วงเวลาพัก (Lunch / Break Time)</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">เวลาเริ่มพัก</label>
+          <input type="time" class="form-input" id="calBreakStart" value="12:00">
+        </div>
+        <span class="arrow-icon">→</span>
+        <div class="form-group">
+          <label class="form-label">ถึง เวลาสิ้นสุดพัก</label>
+          <input type="time" class="form-input" id="calBreakEnd" value="13:00">
+        </div>
+      </div>
+
+      <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px;">
+        <button type="button" class="quick-shift-btn cal-quick-btn" data-s="08:00" data-e="17:30" data-bs="12:00" data-be="13:00">08:00 - 17:30 (ปกติ / พัก 12:00-13:00)</button>
+        <button type="button" class="quick-shift-btn cal-quick-btn" data-s="08:00" data-e="24:00" data-bs="12:00" data-be="13:00">08:00 - 24:00 (เต็มวัน)</button>
+        <button type="button" class="quick-shift-btn cal-quick-btn" data-s="08:00" data-e="12:00" data-bs="" data-be="">08:00 - 12:00 (AM)</button>
+        <button type="button" class="quick-shift-btn cal-quick-btn" data-s="13:00" data-e="17:30" data-bs="" data-be="">13:00 - 17:30 (PM)</button>
+      </div>
+
+      <div class="modal-section-title" style="margin-top:16px;">วันทำงานประจำสัปดาห์ (Working Days)</div>
+      <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-bottom:12px;">
+        <label class="checkbox-group"><input type="checkbox" id="workSun"> อาทิตย์ (Sun)</label>
+        <label class="checkbox-group"><input type="checkbox" id="workMon" checked> จันทร์ (Mon)</label>
+        <label class="checkbox-group"><input type="checkbox" id="workTue" checked> อังคาร (Tue)</label>
+        <label class="checkbox-group"><input type="checkbox" id="workWed" checked> พุธ (Wed)</label>
+        <label class="checkbox-group"><input type="checkbox" id="workThu" checked> พฤหัส (Thu)</label>
+        <label class="checkbox-group"><input type="checkbox" id="workFri" checked> ศุกร์ (Fri)</label>
+        <label class="checkbox-group"><input type="checkbox" id="workSat"> เสาร์ (Sat)</label>
+      </div>
+      <div style="font-size:11.5px; color:#7F8C8D;">* เมื่อคำนวณวันจบงาน (End Date) จาก Weekdays วันที่ไม่ถูกเลือกจะถูกข้ามให้อัตโนมัติ</div>
+    </div>
+    <div class="modal-footer">
+      <div></div>
+      <button class="btn-modal primary" id="btnCloseCalModal">Save Settings</button>
+    </div>
+  </div>
+</div>
+
+<!-- Marks & Highlights Modal Dialog -->
+<div class="modal-backdrop" id="mhModal">
+  <div class="modal-dialog" style="width:620px;">
+    <div class="modal-nav-tabs">
+      <button class="tab-btn active">📍 Marks & Highlights Management</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section-title">
+        <span>Marks (จุดหมายบนไทม์ไลน์)</span>
+        <button class="btn-modal ghost" id="btnAddMarkBtn" style="padding:2px 8px; font-size:11px;">+ เพิ่ม Mark</button>
+      </div>
+      <div id="markListContainer"></div>
+
+      <div class="modal-section-title" style="margin-top:20px;">
+        <span>Highlighted Areas (พื้นที่ไฮไลท์ช่วงเวลา)</span>
+        <button class="btn-modal ghost" id="btnAddHighlightBtn" style="padding:2px 8px; font-size:11px;">+ เพิ่ม Highlight</button>
+      </div>
+      <div id="highlightListContainer"></div>
+    </div>
+    <div class="modal-footer">
+      <div></div>
+      <button class="btn-modal primary" id="btnCloseMHModal">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Baseline History Modal Dialog -->
+<div class="modal-backdrop" id="historyModal">
+  <div class="modal-dialog">
+    <div class="modal-nav-tabs">
+      <button class="tab-btn active">📸 Baseline Version History</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <span style="font-size:12px; color:var(--text-muted);">รายการ Target Snapshots ที่บันทึกไว้ในระบบ</span>
+        <button class="btn-modal primary" id="btnSaveNewVersionModal" style="padding:4px 10px; font-size:11.5px;">📸 Save New Snapshot</button>
+      </div>
+      <div id="historyListContainer"></div>
+    </div>
+    <div class="modal-footer">
+      <div></div>
+      <button class="btn-modal primary" id="btnCloseHistoryModal">Close</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="fileImportInput" accept=".json,.csv" style="display:none;">
+
+<script>
+(function(){
+  const STORAGE_KEY_V6 = 'ganttPlannerData_v6';
+  const STORAGE_KEY_V5 = 'ganttPlannerData_v5';
+  
+  let currentZoom = 'week';
+  let activeEditingTaskId = null;
+  let showCriticalPath = false;
+  let showSCurve = false;
+  let compareVersionId = null;
+
+  let viewMode = 'auto';
+  let viewStart = null, viewEnd = null;
+
+  let timescaleTiers = {
+    years: true,
+    quarters: true,
+    months: true,
+    weeks: true,
+    days: true
+  };
+
+  let workingCalendar = {
+    startTime: '08:00',
+    endTime: '17:30',
+    breakStart: '12:00',
+    breakEnd: '13:00',
+    workdays: [1, 2, 3, 4, 5] // Mon-Fri
+  };
+
+  // --- SAMPLE PLAN BUNDLE (Project Test Function 01) ---
+  // Used by "Create another plan..." and "Reset to Sample Plan" — includes tasks + baseline + calendar + timescale
+  let defaultTasks = [
+    { id: 12, name: "Task A01", type: "task", status: "completed", color: "#33db4f", start: "2026-06-01", end: "2026-06-12", targetStart: "2026-07-30", targetEnd: "2026-08-06", progress: 100, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false },
+    { id: 16, name: "Task A02", type: "task", status: "completed", color: "#3498db", start: "2026-06-15", end: "2026-06-19", targetStart: "2026-07-30", targetEnd: "2026-08-06", progress: 100, milestone: false, deps: [{id:12, type:"FS"}], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false },
+    { id: 18, name: "Task A03", type: "task", status: "inprogress", color: "#3498db", start: "2026-06-22", end: "2026-06-26", targetStart: "2026-07-30", targetEnd: "2026-08-07", progress: 40, milestone: false, deps: [{id:16, type:"FS"}], parentId: null, collapsed: false, progressMode: "auto", desc: "", owner: "", hidden: false },
+    { id: 19, name: "Task B01", type: "task", status: "inprogress", color: "#3498db", start: "2026-06-08", end: "2026-06-10", targetStart: "2026-07-30", targetEnd: "2026-08-07", progress: 0, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false },
+    { id: 20, name: "Marks 01", type: "mark", status: "delay", color: "#E74C3C", start: "2026-07-30", end: "2026-07-30", targetStart: "2026-07-30", targetEnd: "2026-07-30", progress: 0, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: true },
+    { id: 21, name: "Highlighte 01", type: "highlight", status: "inprogress", color: "#2ECC71", start: "2026-07-30", end: "2026-08-06", targetStart: "2026-07-30", targetEnd: "2026-08-06", progress: 0, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: true },
+    { id: 22, name: "Task B02", type: "task", status: "inprogress", color: "#3498db", start: "2026-06-15", end: "2026-06-23", targetStart: "2026-07-30", targetEnd: "2026-08-07", progress: 94, milestone: false, deps: [{id:19, type:"FS"}], parentId: null, collapsed: false, progressMode: "auto", desc: "", owner: "", hidden: false },
+    { id: 23, name: "Sub-task 1", type: "task", status: "inprogress", color: "#3498db", start: "2026-06-15", end: "2026-06-23", targetStart: "2026-07-30", targetEnd: "2026-08-07", progress: 75, milestone: false, deps: [], parentId: 22, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false },
+    { id: 24, name: "Sub-task 2", type: "task", status: "completed", color: "#3498db", start: "2026-06-15", end: "2026-06-22", targetStart: "2026-06-15", targetEnd: "2026-06-23", progress: 100, milestone: false, deps: [], parentId: 22, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false },
+    { id: 25, name: "Sub-task 3", type: "task", status: "completed", color: "#3498db", start: "2026-06-15", end: "2026-06-19", targetStart: "2026-06-15", targetEnd: "2026-06-19", progress: 100, milestone: false, deps: [], parentId: 22, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false },
+    { id: 27, name: "Sub-task 4", type: "task", status: "completed", color: "#3498db", start: "2026-06-15", end: "2026-06-18", targetStart: "2026-06-15", targetEnd: "2026-06-19", progress: 100, milestone: false, deps: [], parentId: 22, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false }
+  ];
+
+  let defaultBaselineHistory = [
+    { id: 2, label: "TEST Baseline 01", savedAt: "2026-07-30T09:47:18.693Z", snapshot: {
+      "12": { targetStart: "2026-06-01", targetEnd: "2026-06-12", name: "Task 01" },
+      "16": { targetStart: "2026-06-15", targetEnd: "2026-06-19", name: "Task 02" },
+      "18": { targetStart: "2026-06-22", targetEnd: "2026-06-26", name: "Task 04" }
+    }},
+    { id: 3, label: "TEST Baseline 02", savedAt: "2026-07-30T10:01:16.845Z", snapshot: {
+      "12": { targetStart: "2026-06-01", targetEnd: "2026-06-12", name: "Task A01" },
+      "16": { targetStart: "2026-06-15", targetEnd: "2026-06-19", name: "Task A02" },
+      "18": { targetStart: "2026-06-22", targetEnd: "2026-06-26", name: "Task A03" },
+      "19": { targetStart: "2026-06-08", targetEnd: "2026-06-10", name: "Task B01" },
+      "20": { targetStart: "2026-07-30", targetEnd: "2026-07-30", name: "Marks 01" },
+      "21": { targetStart: "2026-07-30", targetEnd: "2026-08-06", name: "Highlighte 01" },
+      "22": { targetStart: "2026-06-15", targetEnd: "2026-06-23", name: "Task B02" },
+      "23": { targetStart: "2026-06-15", targetEnd: "2026-06-23", name: "Sub-task 1" },
+      "24": { targetStart: "2026-06-15", targetEnd: "2026-06-22", name: "Sub-task 2" },
+      "25": { targetStart: "2026-06-15", targetEnd: "2026-06-19", name: "Sub-task 3" },
+      "27": { targetStart: "2026-06-15", targetEnd: "2026-06-18", name: "Sub-task 4" }
+    }}
+  ];
+
+  let defaultWorkingCalendar = {
+    startTime: '08:00',
+    endTime: '17:30',
+    breakStart: '12:00',
+    breakEnd: '13:00',
+    workdays: [1, 2, 3, 4, 5]
+  };
+
+  let defaultTimescaleTiers = {
+    years: false,
+    quarters: false,
+    months: false,
+    weeks: true,
+    days: true
+  };
+
+  const DEFAULT_NEXT_ID = 28;
+  const DEFAULT_NEXT_HIST_ID = 4;
+  const DEFAULT_PROJECT_NAME = "Project Test Function 01";
+
+  let tasks = [];
+  let nextId = 12;
+
+  let baselineHistory = [];
+  let nextHistId = 1;
+
+  // --- HELPER FUNCTIONS ---
+  function parseDate(s){
+    if(!s) return new Date();
+    if(s instanceof Date) return new Date(s.getFullYear(), s.getMonth(), s.getDate());
+    const parts = String(s).split('-');
+    if(parts.length === 3){
+      return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    }
+    return new Date(s);
+  }
+  function fmtDate(d){
+    if(!d || isNaN(d)) return '';
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  function addDays(d, n){
+    const r = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    r.setDate(r.getDate() + n);
+    return r;
+  }
+  function diffDays(a, b){ return Math.round((b - a) / 86400000); }
+  function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  function getStatusIcon(status){
+    switch(status){
+      case 'completed': return '✓';
+      case 'inprogress': return '⏳';
+      case 'delay': return '⚠️';
+      case 'problem': return '❗';
+      case 'cancelled': return '✕';
+      case 'none': return '⚪';
+      default: return '⚪';
+    }
+  }
+
+  function getStatusColor(status){
+    switch(status){
+      case 'completed': return '#2ECC71';
+      case 'inprogress': return '#3498DB';
+      case 'delay': return '#F39C12';
+      case 'problem': return '#E74C3C';
+      case 'cancelled': return '#95A5A6';
+      case 'none': return '#B0BEC5';
+      default: return '#34495E';
+    }
+  }
+
+  function isWorkday(d){
+    const wDays = (workingCalendar.workdays || [1,2,3,4,5]).map(Number);
+    return wDays.includes(d.getDay());
+  }
+
+  function getNextWorkday(d){
+    let cur = addDays(d, 1);
+    while(!isWorkday(cur)){ cur = addDays(cur, 1); }
+    return cur;
+  }
+
+  function calculateEndDateByWorkdays(startStr, workDaysCount){
+    let cur = parseDate(startStr);
+    let count = 0;
+    while(count < workDaysCount){
+      if(isWorkday(cur)) count++;
+      if(count < workDaysCount) cur = addDays(cur, 1);
+    }
+    return fmtDate(cur);
+  }
+
+  function calculateStartDateFromEnd(endStr, workDaysCount){
+    let cur = parseDate(endStr);
+    let count = 0;
+    while(count < workDaysCount){
+      if(isWorkday(cur)) count++;
+      if(count < workDaysCount) cur = addDays(cur, -1);
+    }
+    return fmtDate(cur);
+  }
+
+  function countWorkdaysBetween(startStr, endStr){
+    if(!startStr || !endStr) return 1;
+    let cur = parseDate(startStr);
+    const end = parseDate(endStr);
+    if(end < cur) return 1; // Guard against inverted end date
+    let count = 0;
+    while(cur <= end){
+      if(isWorkday(cur)) count++;
+      cur = addDays(cur, 1);
+    }
+    return Math.max(1, count);
+  }
+
+  // --- DEPENDENCY PARSER & FORMATTER (FULL LAG SUPPORT: FS, SS, FF, SF) ---
+  function parseDepsInput(inputStr){
+    if(!inputStr) return [];
+    const tokens = inputStr.split(',').map(s => s.trim()).filter(Boolean);
+    const res = [];
+    tokens.forEach(tok => {
+      const match = tok.match(/^(\d+)(FS|SS|FF|SF)?$/i);
+      if(match){
+        const id = parseInt(match[1], 10);
+        const type = (match[2] || 'FS').toUpperCase();
+        res.push({ id, type });
+      }
+    });
+    return res;
+  }
+
+  function formatDepsString(depsArray){
+    if(!Array.isArray(depsArray)) return '';
+    return depsArray.map(d => {
+      if(typeof d === 'number') return `${d}FS`;
+      return `${d.id}${d.type || 'FS'}`;
+    }).join(', ');
+  }
+
+  function normalizeDeps(deps){
+    if(!Array.isArray(deps)) return [];
+    return deps.map(d => typeof d === 'number' ? { id: d, type: 'FS' } : { id: d.id, type: d.type || 'FS' });
+  }
+
+  // --- CIRCULAR DEPENDENCY GUARD (Step 6) ---
+  // Returns true if adding an edge (sourceId -> targetId), i.e. sourceId becomes a
+  // predecessor of targetId, would create a circular dependency loop.
+  function wouldCreateCycle(sourceId, targetId){
+    if(sourceId === targetId) return true;
+    const visited = new Set();
+    const stack = [targetId];
+    while(stack.length){
+      const cur = stack.pop();
+      if(cur === sourceId) return true;
+      if(visited.has(cur)) continue;
+      visited.add(cur);
+      tasks.forEach(t => {
+        if(normalizeDeps(t.deps).some(d => d.id === cur)) stack.push(t.id);
+      });
+    }
+    return false;
+  }
+
+  // --- STORAGE ENGINE ---
+  function saveToStorage(){
+    try {
+      const payload = {
+        projectName: document.getElementById('projectNameInput').value,
+        tasks, baselineHistory, currentZoom, showCriticalPath, showSCurve,
+        viewMode, viewStart, viewEnd, workingCalendar, timescaleTiers
+      };
+      localStorage.setItem(STORAGE_KEY_V6, JSON.stringify(payload));
+    } catch(e){}
+  }
+
+  function loadFromStorage(){
+    try {
+      let raw = localStorage.getItem(STORAGE_KEY_V6);
+      if(!raw) raw = localStorage.getItem(STORAGE_KEY_V5); // Fallback to V5 data
+      if(!raw) return;
+      const payload = JSON.parse(raw);
+      if(payload.projectName) document.getElementById('projectNameInput').value = payload.projectName;
+      if(Array.isArray(payload.tasks) && payload.tasks.length){
+        tasks = payload.tasks;
+        tasks.forEach(t => {
+          if(!t.type){
+            if(t.milestone) t.type = 'milestone';
+            else t.type = 'task';
+          }
+          if(t.type === 'milestone' || t.type === 'mark'){
+            t.end = t.start;
+          }
+          t.deps = normalizeDeps(t.deps);
+          if(t.hidden === undefined) t.hidden = false;
+        });
+      }
+      if(Array.isArray(payload.baselineHistory)) baselineHistory = payload.baselineHistory;
+      if(payload.currentZoom) currentZoom = payload.currentZoom;
+      if(payload.showCriticalPath !== undefined) showCriticalPath = payload.showCriticalPath;
+      if(payload.showSCurve !== undefined) showSCurve = payload.showSCurve;
+      if(payload.viewMode){ viewMode = payload.viewMode; viewStart = payload.viewStart; viewEnd = payload.viewEnd; }
+      if(payload.workingCalendar) workingCalendar = payload.workingCalendar;
+      if(payload.timescaleTiers) timescaleTiers = payload.timescaleTiers;
+
+      nextId = Math.max(...tasks.map(t=>t.id), 0) + 1;
+      if(baselineHistory.length) nextHistId = Math.max(...baselineHistory.map(h=>h.id), 0) + 1;
+    } catch(e){}
+  }
+
+  // --- ROLLUP PROGRESS MATH ---
+  function hasChildren(t){ return tasks.some(x => x.parentId === t.id); }
+  function isCollapsedAncestor(t){
+    let cur = t, guard = 0;
+    while(cur && cur.parentId != null && guard < 50){
+      const p = tasks.find(x => x.id === cur.parentId);
+      if(!p) break;
+      if(p.collapsed) return true;
+      cur = p; guard++;
+    }
+    return false;
+  }
+  function taskDepth(t){
+    let d = 0, cur = t, guard = 0;
+    while(cur && cur.parentId != null && guard < 50){
+      const p = tasks.find(x => x.id === cur.parentId);
+      if(!p) break;
+      d++; cur = p; guard++;
+    }
+    return d;
+  }
+
+  function applyRollups(){
+    tasks.forEach(t => {
+      if(hasChildren(t) && t.progressMode === 'auto'){
+        const children = tasks.filter(x => x.parentId === t.id);
+        let totalProgress = 0;
+        children.forEach(c => totalProgress += (c.progress || 0));
+        t.progress = children.length ? Math.round(totalProgress / children.length) : 0;
+      }
+    });
+  }
+
+  // --- FULL CPM CRITICAL PATH ENGINE (FS, SS, FF, SF FULL LAG) ---
+  function computeCriticalPath(){
+    const validTasks = tasks.filter(t => !t.hidden && t.status !== 'cancelled' && t.type !== 'mark' && t.type !== 'highlight' && t.start && t.end);
+    if(!validTasks.length) return { criticalIds: new Set(), criticalEdges: new Set(), totalDays: 0, criticalCount: 0 };
+
+    const taskMap = {};
+    validTasks.forEach(t => {
+      const dur = countWorkdaysBetween(t.start, t.end);
+      taskMap[t.id] = { id: t.id, start: t.start, end: t.end, duration: dur, deps: normalizeDeps(t.deps), ES: null, EF: null, LS: null, LF: null, TF: 0 };
+    });
+
+    // Forward Pass
+    let minProjectDate = null;
+    validTasks.forEach(t => {
+      const d = parseDate(t.start);
+      if(!minProjectDate || d < minProjectDate) minProjectDate = d;
+    });
+    if(!minProjectDate) minProjectDate = new Date();
+
+    const minDateStr = fmtDate(minProjectDate);
+
+    // Iterative Forward Pass for Full Lag Relationships
+    let changed = true, passGuard = 0;
+    while(changed && passGuard < 100){
+      changed = false; passGuard++;
+      validTasks.forEach(t => {
+        const item = taskMap[t.id];
+        let earliestStart = parseDate(t.start);
+
+        item.deps.forEach(dep => {
+          const pItem = taskMap[dep.id];
+          if(!pItem) return;
+          const pStart = parseDate(pItem.start);
+          const pEnd = parseDate(pItem.end);
+
+          let reqStart = earliestStart;
+          if(dep.type === 'FS'){
+            reqStart = getNextWorkday(pEnd);
+          } else if(dep.type === 'SS'){
+            reqStart = pStart;
+          } else if(dep.type === 'FF'){
+            const reqEnd = pEnd;
+            reqStart = parseDate(calculateStartDateFromEnd(fmtDate(reqEnd), item.duration));
+          } else if(dep.type === 'SF'){
+            const reqEnd = pStart;
+            reqStart = parseDate(calculateStartDateFromEnd(fmtDate(reqEnd), item.duration));
+          }
+          if(reqStart > earliestStart) earliestStart = reqStart;
+        });
+
+        const esStr = fmtDate(earliestStart);
+        const efStr = calculateEndDateByWorkdays(esStr, item.duration);
+        if(item.ES !== esStr || item.EF !== efStr){
+          item.ES = esStr; item.EF = efStr; changed = true;
+        }
+      });
+    }
+
+    // Determine Project End Date
+    let maxProjectEnd = minProjectDate;
+    validTasks.forEach(t => {
+      const e = parseDate(taskMap[t.id].EF || t.end);
+      if(e > maxProjectEnd) maxProjectEnd = e;
+    });
+
+    const projectEndStr = fmtDate(maxProjectEnd);
+
+    // Backward Pass
+    validTasks.forEach(t => {
+      const item = taskMap[t.id];
+      item.LF = projectEndStr;
+      item.LS = calculateStartDateFromEnd(projectEndStr, item.duration);
+    });
+
+    changed = true; passGuard = 0;
+    while(changed && passGuard < 100){
+      changed = false; passGuard++;
+      validTasks.forEach(t => {
+        const item = taskMap[t.id];
+        let latestFinish = parseDate(projectEndStr);
+
+        validTasks.forEach(sTask => {
+          const sItem = taskMap[sTask.id];
+          sItem.deps.forEach(dep => {
+            if(dep.id === t.id){
+              const sLS = parseDate(sItem.LS);
+              const sLF = parseDate(sItem.LF);
+              let reqFinish = latestFinish;
+              if(dep.type === 'FS'){
+                reqFinish = addDays(sLS, -1);
+              } else if(dep.type === 'SS'){
+                reqFinish = parseDate(calculateEndDateByWorkdays(fmtDate(sLS), item.duration));
+              } else if(dep.type === 'FF'){
+                reqFinish = sLF;
+              } else if(dep.type === 'SF'){
+                reqFinish = sLS;
+              }
+              if(reqFinish < latestFinish) latestFinish = reqFinish;
+            }
+          });
+        });
+
+        const lfStr = fmtDate(latestFinish);
+        const lsStr = calculateStartDateFromEnd(lfStr, item.duration);
+        if(item.LF !== lfStr || item.LS !== lsStr){
+          item.LF = lfStr; item.LS = lsStr; changed = true;
+        }
+      });
+    }
+
+    // Compute Total Float & Critical Path Items
+    const criticalIds = new Set();
+    const criticalEdges = new Set();
+
+    validTasks.forEach(t => {
+      const item = taskMap[t.id];
+      item.TF = countWorkdaysBetween(item.ES, item.LS) - 1;
+      if(item.TF <= 0 || item.ES === item.LS){
+        criticalIds.add(t.id);
+      }
+    });
+
+    validTasks.forEach(t => {
+      if(criticalIds.has(t.id)){
+        const item = taskMap[t.id];
+        item.deps.forEach(dep => {
+          if(criticalIds.has(dep.id)){
+            criticalEdges.add(t.id + '->' + dep.id);
+            criticalEdges.add(dep.id + '->' + t.id);
+          }
+        });
+      }
+    });
+
+    const totalDays = countWorkdaysBetween(minDateStr, projectEndStr);
+    return { criticalIds, criticalEdges, totalDays, criticalCount: criticalIds.size };
+  }
+
+  // --- MAIN RENDERER ---
+  function render(){
+    applyRollups();
+    renderTaskTree();
+    renderTimeline();
+    syncRangeInputs();
+    saveToStorage();
+  }
+
+  // --- TASK TREE SIDEBAR WITH DRAG & DROP & SUB-TASK NESTING ---
+  let draggedTaskId = null;
+
+  function renderTaskTree(){
+    const container = document.getElementById('taskTreeContainer');
+    container.innerHTML = '';
+
+    // Filter out hidden tasks (t.hidden === true)
+    const visibleTasks = tasks.filter(t => !t.hidden && !isCollapsedAncestor(t));
+
+    visibleTasks.forEach((t, visibleIdx) => {
+      const depth = taskDepth(t);
+      const isParent = hasChildren(t);
+
+      const node = document.createElement('div');
+      node.className = 'task-node' + (activeEditingTaskId === t.id ? ' selected' : '');
+      node.dataset.id = t.id;
+      node.setAttribute('draggable', 'true');
+
+      let typeTag = '';
+      if(t.type === 'mark') typeTag = '<span class="node-type-tag type-mark">MARK</span>';
+      else if(t.type === 'highlight') typeTag = '<span class="node-type-tag type-highlight">HIGHLIGHT</span>';
+
+      const canIndent = visibleIdx > 0;
+      const canOutdent = t.parentId != null;
+
+      node.innerHTML = `
+        <span class="drag-handle" title="คลิกลากสลับลำดับ หรือวางทับงานอื่นเพื่อทำเป็น Sub-task">⋮⋮</span>
+        <span class="task-indent" style="width:${depth * 12}px"></span>
+        <span class="toggle-tree" data-id="${t.id}">${isParent ? (t.collapsed ? '▸' : '▾') : '•'}</span>
+        <span class="tree-icon-status" style="background:${t.color || getStatusColor(t.status)}">${t.type === 'mark' ? '📍' : (t.type === 'highlight' ? '🎨' : getStatusIcon(t.status))}</span>
+        <span class="node-title" data-id="${t.id}" title="${escapeHtml(t.name)}">${escapeHtml(t.name)} ${typeTag}</span>
+        <div class="node-actions">
+          ${canIndent ? `<button class="btn-node-opt btn-indent" data-id="${t.id}" title="ทำเป็น Sub-task (Indent)">⇥</button>` : ''}
+          ${canOutdent ? `<button class="btn-node-opt btn-outdent" data-id="${t.id}" title="ยกเลิกเป็น Main-task (Outdent)">⇤</button>` : ''}
+          <button class="btn-node-opt btn-edit" data-id="${t.id}" title="แก้ไข Task">✏️</button>
+          <button class="btn-node-opt btn-add-sub" data-id="${t.id}" title="เพิ่ม Sub-task ใหม่">+Sub</button>
+        </div>
+      `;
+
+      // Drag and Drop Events for Sidebar Reordering & Sub-task Nesting
+      node.addEventListener('dragstart', e => {
+        draggedTaskId = t.id;
+        node.classList.add('dragging');
+        e.dataTransfer.setData('text/plain', t.id);
+      });
+
+      node.addEventListener('dragover', e => {
+        e.preventDefault();
+        if(draggedTaskId === t.id) return;
+        const rect = node.getBoundingClientRect();
+        const relY = e.clientY - rect.top;
+        node.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-subtask');
+        if(relY < 10){
+          node.classList.add('drag-over-top');
+        } else if(relY > 28){
+          node.classList.add('drag-over-bottom');
+        } else {
+          node.classList.add('drag-over-subtask');
+        }
+      });
+
+      node.addEventListener('dragleave', () => {
+        node.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-subtask');
+      });
+
+      node.addEventListener('drop', e => {
+        e.preventDefault();
+        const dropTargetId = t.id;
+        node.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-subtask');
+        if(draggedTaskId && draggedTaskId !== dropTargetId){
+          const draggedItem = tasks.find(x => x.id === draggedTaskId);
+          const targetItem = tasks.find(x => x.id === dropTargetId);
+          if(!draggedItem || !targetItem) return;
+
+          const rect = node.getBoundingClientRect();
+          const relY = e.clientY - rect.top;
+
+          if(relY >= 10 && relY <= 28){
+            // Nest as Sub-task of targetItem
+            draggedItem.parentId = targetItem.id;
+            targetItem.collapsed = false;
+          } else {
+            // Reorder sibling
+            draggedItem.parentId = targetItem.parentId;
+            const srcIdx = tasks.findIndex(x => x.id === draggedTaskId);
+            tasks.splice(srcIdx, 1);
+            const targetIdx = tasks.findIndex(x => x.id === dropTargetId);
+            const insertIdx = (relY < 10) ? targetIdx : targetIdx + 1;
+            tasks.splice(insertIdx, 0, draggedItem);
+          }
+          render();
+        }
+      });
+
+      node.addEventListener('dragend', () => {
+        draggedTaskId = null;
+        node.classList.remove('dragging');
+      });
+
+      container.appendChild(node);
+    });
+
+    container.querySelectorAll('.toggle-tree').forEach(el => {
+      el.addEventListener('click', e => {
+        const id = +e.target.dataset.id;
+        const t = tasks.find(x => x.id === id);
+        if(t && hasChildren(t)){ t.collapsed = !t.collapsed; render(); }
+      });
+    });
+
+    container.querySelectorAll('.node-title, .btn-edit').forEach(el => {
+      el.addEventListener('click', e => openModal(+e.target.dataset.id));
+    });
+
+    container.querySelectorAll('.btn-indent').forEach(el => {
+      el.addEventListener('click', e => {
+        const id = +e.target.dataset.id;
+        const idx = visibleTasks.findIndex(x => x.id === id);
+        if(idx > 0){
+          const t = tasks.find(x => x.id === id);
+          const prevVisible = visibleTasks[idx - 1];
+          if(t && prevVisible){
+            t.parentId = prevVisible.id;
+            prevVisible.collapsed = false;
+            render();
+          }
+        }
+      });
+    });
+
+    container.querySelectorAll('.btn-outdent').forEach(el => {
+      el.addEventListener('click', e => {
+        const id = +e.target.dataset.id;
+        const t = tasks.find(x => x.id === id);
+        if(t && t.parentId != null){
+          const parent = tasks.find(x => x.id === t.parentId);
+          t.parentId = parent ? parent.parentId : null;
+          render();
+        }
+      });
+    });
+
+    container.querySelectorAll('.btn-add-sub').forEach(el => {
+      el.addEventListener('click', e => {
+        const parentId = +e.target.dataset.id;
+        const parent = tasks.find(x => x.id === parentId);
+        const newSub = {
+          id: nextId++, name: "Sub-task ใหม่", type: "task", status: "inprogress", color: "#3498DB",
+          start: parent.start, end: parent.end, targetStart: parent.start, targetEnd: parent.end,
+          progress: 0, milestone: false, deps: [], parentId: parentId, collapsed: false, progressMode: "manual", hidden: false
+        };
+        tasks.push(newSub);
+        parent.collapsed = false;
+        render();
+        openModal(newSub.id);
+      });
+    });
+  }
+
+  // --- TIMELINE RANGE MATH ---
+  function autoTimeBounds(){
+    let min = null, max = null;
+    tasks.filter(t => !t.hidden).forEach(t => {
+      [t.start, t.end, t.targetStart, t.targetEnd].forEach(ds => {
+        if(!ds) return;
+        const d = parseDate(ds);
+        if(!min || d < min) min = d;
+        if(!max || d > max) max = d;
+      });
+    });
+    if(!min){ min = new Date(); max = addDays(min, 60); }
+    return { min: addDays(min, -7), max: addDays(max, 14) };
+  }
+
+  function getTimeBounds(){
+    if(viewMode === 'manual' && viewStart && viewEnd){
+      return { min: parseDate(viewStart), max: addDays(parseDate(viewEnd), 1) };
+    }
+    return autoTimeBounds();
+  }
+
+  function syncRangeInputs(){
+    const sInput = document.getElementById('rangeStartInput');
+    const eInput = document.getElementById('rangeEndInput');
+    if(!sInput || !eInput) return;
+
+    if(viewMode === 'manual' && viewStart && viewEnd){
+      sInput.value = viewStart;
+      eInput.value = viewEnd;
+    } else {
+      const auto = autoTimeBounds();
+      sInput.value = fmtDate(auto.min);
+      eInput.value = fmtDate(addDays(auto.max, -1));
+    }
+  }
+
+  // --- INTERACTIVE TIMELINE RENDERER WITH DYNAMIC TIMESCALE TIERS ---
+  let isDraggingBar = false;
+  let dragTask = null;
+  let dragMode = null; // 'move' | 'resize'
+  let dragStartX = 0;
+  let dragOrigStart = null;
+  let dragOrigEnd = null;
+
+  // --- Dependency Link Drag State (Step 4) ---
+  let isLinking = false;
+  let linkSourceId = null;
+  let linkSourceEdge = null; // 'start' | 'end' | 'point'
+  let linkSourceX = 0;
+  let linkSourceY = 0;
+  let tempLinkPath = null;
+
+  function resolveDepType(srcEdge, tgtEdge){
+    const s = srcEdge === 'point' ? 'end' : srcEdge;
+    const t = tgtEdge === 'point' ? 'start' : tgtEdge;
+    if(s === 'end' && t === 'start') return 'FS';
+    if(s === 'start' && t === 'start') return 'SS';
+    if(s === 'end' && t === 'end') return 'FF';
+    if(s === 'start' && t === 'end') return 'SF';
+    return 'FS';
+  }
+
+  function attachLinkHandle(handleEl, taskId, edge){
+    handleEl.addEventListener('mousedown', ev => {
+      if(ev.button !== 0) return;
+      ev.stopPropagation();
+      ev.preventDefault();
+      const bodyRect = document.getElementById('timelineBodyArea').getBoundingClientRect();
+      const hRect = handleEl.getBoundingClientRect();
+      linkSourceX = (hRect.left + hRect.width / 2) - bodyRect.left;
+      linkSourceY = (hRect.top + hRect.height / 2) - bodyRect.top;
+      isLinking = true;
+      linkSourceId = taskId;
+      linkSourceEdge = edge;
+      document.body.classList.add('linking-mode');
+      document.body.style.cursor = 'crosshair';
+    });
+  }
+
+  function updateTempLinkLine(ev){
+    const bodyRect = document.getElementById('timelineBodyArea').getBoundingClientRect();
+    const curX = ev.clientX - bodyRect.left;
+    const curY = ev.clientY - bodyRect.top;
+    const svgLayer = document.getElementById('dependencySvg');
+    if(!svgLayer) return;
+    if(!tempLinkPath){
+      tempLinkPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      tempLinkPath.setAttribute('class', 'temp-link-line');
+      svgLayer.appendChild(tempLinkPath);
+    }
+    tempLinkPath.setAttribute('d', `M ${linkSourceX} ${linkSourceY} L ${curX} ${curY}`);
+  }
+
+  function finishLinking(ev){
+    isLinking = false;
+    document.body.classList.remove('linking-mode');
+    document.body.style.cursor = '';
+    if(tempLinkPath){ tempLinkPath.remove(); tempLinkPath = null; }
+
+    const srcId = linkSourceId, srcEdge = linkSourceEdge;
+    linkSourceId = null; linkSourceEdge = null;
+    if(srcId == null) return;
+
+    const elAtPoint = document.elementFromPoint(ev.clientX, ev.clientY);
+    const handleTarget = elAtPoint ? elAtPoint.closest('.link-handle') : null;
+    if(!handleTarget) return;
+
+    const targetId = parseInt(handleTarget.dataset.taskId, 10);
+    const targetEdge = handleTarget.dataset.edge;
+    if(targetId === srcId) return;
+
+    const sourceTask = tasks.find(x => x.id === srcId);
+    const targetTask = tasks.find(x => x.id === targetId);
+    if(!sourceTask || !targetTask) return;
+
+    targetTask.deps = normalizeDeps(targetTask.deps);
+    if(targetTask.deps.some(d => d.id === srcId)){
+      alert(`มีเส้นเชื่อม Dependency จาก "${sourceTask.name}" ไปยัง "${targetTask.name}" อยู่แล้ว`);
+      return;
+    }
+
+    if(wouldCreateCycle(srcId, targetId)){
+      alert(`⚠️ ไม่สามารถเชื่อมได้: การเชื่อม "${sourceTask.name}" → "${targetTask.name}" จะทำให้เกิด Circular Dependency (วนลูป)`);
+      return;
+    }
+
+    const depType = resolveDepType(srcEdge, targetEdge);
+    targetTask.deps.push({ id: srcId, type: depType });
+    render();
+  }
+
+  function renderTimeline(){
+    const { min, max } = getTimeBounds();
+    const totalDays = diffDays(min, max);
+
+    let dayWidth = 24;
+    if(currentZoom === 'day') dayWidth = 40;
+    if(currentZoom === 'week') dayWidth = 20;
+    if(currentZoom === 'month') dayWidth = 8;
+    if(currentZoom === 'quarter') dayWidth = 3;
+
+    const totalWidth = Math.max(totalDays * dayWidth, 800);
+    const visibleTasks = tasks.filter(t => !t.hidden && !isCollapsedAncestor(t));
+    const totalHeight = visibleTasks.length * 38;
+
+    const cp = showCriticalPath ? computeCriticalPath() : { criticalIds: new Set(), criticalEdges: new Set(), totalDays: 0, criticalCount: 0 };
+
+    // Update Critical Path Info Banner
+    const cpBanner = document.getElementById('cpInfoBanner');
+    const cpBtn = document.getElementById('btnToggleCP');
+    if(showCriticalPath && cp.totalDays > 0){
+      const totalMonths = (cp.totalDays / 30.4375).toFixed(1);
+      cpBanner.style.display = 'flex';
+      cpBanner.innerHTML = `
+        <span>🎯 <b>Critical Path (CPM Full Lag):</b> ระยะเวลารวมเส้นทางวิกฤต <b style="font-size:13px; color:#C0392B;">${cp.totalDays} วัน</b> (${totalMonths} เดือน) — มี <b style="font-size:13px; color:#C0392B;">${cp.criticalCount} งานวิกฤต (Float = 0)</b></span>
+      `;
+      cpBtn.classList.add('active');
+    } else {
+      cpBanner.style.display = 'none';
+      cpBtn.classList.remove('active');
+    }
+
+    // Update Baseline Compare Banner
+    const cmpBanner = document.getElementById('compareInfoBanner');
+    const isComparing = (compareVersionId != null);
+    if(isComparing){
+      const snapEntry = baselineHistory.find(h => h.id === compareVersionId);
+      const snapLabel = snapEntry ? snapEntry.label : 'Baseline Snapshot';
+      cmpBanner.style.display = 'flex';
+      cmpBanner.innerHTML = `
+        <span>👁️ <b>กำลังเปรียบเทียบ Baseline:</b> "${escapeHtml(snapLabel)}" — <span style="color:#8E44AD; font-weight:700;">แถบสีม่วงด้านบน</span> = แผน Baseline | <span style="color:#2980B9; font-weight:700;">แถบสีด้านล่าง</span> = แผนปัจจุบัน</span>
+        <button class="btn-modal ghost" id="btnExitCompare" style="padding:2px 8px; font-size:11px; background:#FFF; border-color:#D7BDE2; color:#8E44AD;">✕ ยกเลิกการเทียบ</button>
+      `;
+      document.getElementById('btnExitCompare').addEventListener('click', () => {
+        compareVersionId = null;
+        renderHistoryModal();
+        renderTimeline();
+      });
+    } else {
+      cmpBanner.style.display = 'none';
+    }
+
+    // --- DYNAMIC TIMESCALE HEADER STACK ---
+    const headerSticky = document.getElementById('timelineHeaderSticky');
+    headerSticky.innerHTML = '';
+
+    const THAI_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+
+    // 1. Years Tier Row
+    if(timescaleTiers.years){
+      const rowY = document.createElement('div');
+      rowY.className = 'timeline-scale-row';
+      rowY.style.width = totalWidth + "px";
+      rowY.style.background = '#EAECEE';
+      rowY.style.color = '#2C3E50';
+
+      let cur = new Date(min);
+      while(cur < max){
+        const yStart = new Date(cur.getFullYear(), 0, 1);
+        const yEnd = new Date(cur.getFullYear() + 1, 0, 1);
+        const segStart = cur > yStart ? cur : yStart;
+        const segEnd = yEnd < max ? yEnd : max;
+        const daysInSeg = diffDays(segStart, segEnd);
+        const w = daysInSeg * dayWidth;
+
+        const cell = document.createElement('div');
+        cell.className = 'scale-cell';
+        cell.style.width = w + "px";
+        cell.textContent = `${segStart.getFullYear() + 543} (${segStart.getFullYear()})`;
+        rowY.appendChild(cell);
+
+        cur = yEnd;
+      }
+      headerSticky.appendChild(rowY);
+    }
+
+    // 2. Quarters Tier Row
+    if(timescaleTiers.quarters){
+      const rowQ = document.createElement('div');
+      rowQ.className = 'timeline-scale-row';
+      rowQ.style.width = totalWidth + "px";
+      rowQ.style.background = '#F2F4F4';
+      rowQ.style.color = '#34495E';
+
+      let cur = new Date(min);
+      while(cur < max){
+        const qIdx = Math.floor(cur.getMonth() / 3);
+        const qStart = new Date(cur.getFullYear(), qIdx * 3, 1);
+        const qEnd = new Date(cur.getFullYear(), (qIdx + 1) * 3, 1);
+        const segStart = cur > qStart ? cur : qStart;
+        const segEnd = qEnd < max ? qEnd : max;
+        const daysInSeg = diffDays(segStart, segEnd);
+        const w = daysInSeg * dayWidth;
+
+        const cell = document.createElement('div');
+        cell.className = 'scale-cell';
+        cell.style.width = w + "px";
+        cell.textContent = `Q${qIdx + 1}`;
+        rowQ.appendChild(cell);
+
+        cur = qEnd;
+      }
+      headerSticky.appendChild(rowQ);
+    }
+
+    // 3. Months Tier Row
+    if(timescaleTiers.months){
+      const rowM = document.createElement('div');
+      rowM.className = 'timeline-scale-row';
+      rowM.style.width = totalWidth + "px";
+
+      let cur = new Date(min);
+      while(cur < max){
+        const mStart = new Date(cur.getFullYear(), cur.getMonth(), 1);
+        const mEnd = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+        const segStart = cur > mStart ? cur : mStart;
+        const segEnd = mEnd < max ? mEnd : max;
+        const daysInSeg = diffDays(segStart, segEnd);
+        const w = daysInSeg * dayWidth;
+
+        const cell = document.createElement('div');
+        cell.className = 'scale-cell';
+        cell.style.width = w + "px";
+        cell.textContent = `${THAI_MONTHS[segStart.getMonth()]}`;
+        rowM.appendChild(cell);
+
+        cur = mEnd;
+      }
+      headerSticky.appendChild(rowM);
+    }
+
+    // 4. Weeks Tier Row
+    if(timescaleTiers.weeks){
+      const rowW = document.createElement('div');
+      rowW.className = 'timeline-scale-row';
+      rowW.style.width = totalWidth + "px";
+      rowW.style.fontSize = '9.5px';
+
+      for(let i = 0; i < totalDays; i += 7){
+        const wStart = addDays(min, i);
+        const wEnd = addDays(min, Math.min(i + 7, totalDays));
+        const daysInSeg = diffDays(wStart, wEnd);
+        const w = daysInSeg * dayWidth;
+
+        const cell = document.createElement('div');
+        cell.className = 'scale-cell';
+        cell.style.width = w + "px";
+        const weekNum = Math.ceil((i + 1) / 7);
+        cell.textContent = `W${weekNum}`;
+        rowW.appendChild(cell);
+      }
+      headerSticky.appendChild(rowW);
+    }
+
+    // 5. Days Tier Row
+    if(timescaleTiers.days){
+      const rowD = document.createElement('div');
+      rowD.className = 'timeline-scale-row';
+      rowD.style.width = totalWidth + "px";
+      rowD.style.fontSize = '9px';
+
+      for(let i = 0; i < totalDays; i++){
+        const d = addDays(min, i);
+        const cell = document.createElement('div');
+        cell.className = 'scale-cell';
+        cell.style.width = dayWidth + "px";
+        cell.textContent = d.getDate();
+        if(!isWorkday(d)) cell.style.background = '#F2F4F4';
+        rowD.appendChild(cell);
+      }
+      headerSticky.appendChild(rowD);
+    }
+
+    // --- SYNC SIDEBAR HEADER HEIGHT WITH DYNAMIC TIMESCALE HEADER (Fix: row misalignment) ---
+    const activeTierCount = Object.values(timescaleTiers).filter(Boolean).length;
+    const dynamicHeaderH = activeTierCount * 22; // each .timeline-scale-row is fixed 22px (border-box)
+    const sidebarHeaderEl = document.getElementById('sidebarHeaderEl');
+    if(sidebarHeaderEl) sidebarHeaderEl.style.height = dynamicHeaderH + "px";
+
+    const bodyArea = document.getElementById('timelineBodyArea');
+    const svgLayer = document.getElementById('dependencySvg');
+
+    bodyArea.style.width = totalWidth + "px";
+    bodyArea.style.height = totalHeight + "px";
+    svgLayer.setAttribute('width', totalWidth);
+    svgLayer.setAttribute('height', totalHeight);
+
+    Array.from(bodyArea.children).forEach(c => { if(c !== svgLayer) c.remove(); });
+    svgLayer.innerHTML = '';
+
+    for(let i = 0; i < totalDays; i++){
+      const d = addDays(min, i);
+      const col = document.createElement('div');
+      col.className = 'grid-bg-column' + (!isWorkday(d) ? ' weekend' : '');
+      col.style.left = (i * dayWidth) + "px";
+      col.style.width = dayWidth + "px";
+      bodyArea.appendChild(col);
+    }
+
+    const posMap = {};
+
+    // Render Highlight Bands on Gantt Chart (Always visible on Gantt chart even if hidden from left sidebar)
+    tasks.filter(t => t.type === 'highlight' && t.start && t.end).forEach(t => {
+      const s = parseDate(t.start), e = parseDate(t.end);
+      const x = diffDays(min, s) * dayWidth;
+      const w = Math.max(diffDays(s, e) * dayWidth, dayWidth);
+      const band = document.createElement('div');
+      band.className = 'highlight-band-bg';
+      band.style.left = x + "px"; band.style.width = w + "px"; band.style.background = t.color || '#2ECC71';
+      bodyArea.appendChild(band);
+    });
+
+    // Render Vertical Marker Lines & Badges on Gantt Chart (Always visible on Gantt chart even if hidden from left sidebar)
+    tasks.filter(t => t.type === 'mark' && t.start).forEach(t => {
+      const s = parseDate(t.start);
+      const x = diffDays(min, s) * dayWidth;
+      const line = document.createElement('div');
+      line.className = 'vertical-marker-line';
+      line.style.left = x + "px"; line.style.background = t.color || '#E74C3C';
+      bodyArea.appendChild(line);
+
+      const badge = document.createElement('div');
+      badge.className = 'marker-header-badge';
+      badge.style.left = x + "px"; badge.style.background = t.color || '#E74C3C';
+      badge.textContent = `${t.name} (${t.start})`;
+
+      const tri = document.createElement('div');
+      tri.className = 'marker-header-triangle';
+      tri.style.borderTopColor = t.color || '#E74C3C';
+      badge.appendChild(tri);
+
+      bodyArea.appendChild(badge);
+    });
+
+    // Render TODAY LINE — dynamic vertical line at the current real-world date, independent of any task data
+    {
+      const todayD = new Date();
+      todayD.setHours(0, 0, 0, 0);
+      if(todayD >= min && todayD < max){
+        const tx = diffDays(min, todayD) * dayWidth;
+
+        const tLine = document.createElement('div');
+        tLine.className = 'today-line';
+        tLine.style.left = tx + "px";
+        tLine.title = `วันนี้ (Today): ${fmtDate(todayD)}`;
+        bodyArea.appendChild(tLine);
+
+        const tBadge = document.createElement('div');
+        tBadge.className = 'today-badge';
+        tBadge.style.left = tx + "px";
+        tBadge.textContent = `📍 วันนี้ ${fmtDate(todayD)}`;
+        const tTri = document.createElement('div');
+        tTri.className = 'today-badge-triangle';
+        tBadge.appendChild(tTri);
+        bodyArea.appendChild(tBadge);
+      }
+    }
+
+    visibleTasks.forEach((t, index) => {
+      const rowY = index * 38;
+      const s = parseDate(t.start), e = parseDate(t.end || t.start);
+      const x = diffDays(min, s) * dayWidth;
+      const isCritical = cp.criticalIds.has(t.id);
+
+      if(t.type === 'highlight' || t.type === 'mark') return; // Handled above
+
+      // Render Baseline Compare Bar DISTINCTLY ABOVE actual bar
+      if(isComparing){
+        const snapEntry = baselineHistory.find(h => h.id === compareVersionId);
+        const snap = snapEntry ? snapEntry.snapshot[t.id] : null;
+        if(snap && snap.targetStart && snap.targetEnd){
+          const cs = parseDate(snap.targetStart), ce = parseDate(snap.targetEnd);
+          const cx = diffDays(min, cs) * dayWidth;
+          const cw = Math.max((diffDays(cs, ce) + 1) * dayWidth, dayWidth);
+          const cmpBar = document.createElement('div');
+          cmpBar.className = 'compare-bar';
+          cmpBar.style.left = cx + "px";
+          cmpBar.style.width = cw + "px";
+          cmpBar.style.top = (rowY + 2) + "px";
+          cmpBar.title = `[Baseline Plan "${snapEntry.label}"] ${snap.name || t.name}: ${snap.targetStart} ถึง ${snap.targetEnd}`;
+          bodyArea.appendChild(cmpBar);
+        }
+      }
+
+      // Render Type = 'milestone'
+      if(t.type === 'milestone' || t.milestone){
+        const cx = x;
+        const milestoneTop = isComparing ? (rowY + 13) : (rowY + 9);
+        posMap[t.id] = { x: cx, y: rowY + 19, isMilestone: true };
+
+        const dia = document.createElement('div');
+        dia.className = 'gantt-milestone' + (isCritical ? ' critical' : '');
+        dia.style.left = (cx - 10) + "px";
+        dia.style.top = milestoneTop + "px";
+        dia.style.background = t.color || getStatusColor(t.status);
+        dia.title = `♦️ Milestone: ${t.name}\nวันที่กำหนด: ${t.start}\n[คลิกลากเพื่อย้ายวัน]`;
+
+        dia.addEventListener('mousedown', ev => {
+          if(ev.button !== 0) return;
+          if(ev.target && ev.target.classList.contains('link-handle')) return;
+          isDraggingBar = true; dragTask = t; dragMode = 'move';
+          dragStartX = ev.clientX; dragOrigStart = parseDate(t.start); dragOrigEnd = parseDate(t.start);
+          ev.stopPropagation();
+        });
+
+        dia.addEventListener('dblclick', () => openModal(t.id));
+
+        const mStartHandle = document.createElement('div');
+        mStartHandle.className = 'link-handle link-handle-start';
+        mStartHandle.dataset.taskId = t.id;
+        mStartHandle.dataset.edge = 'start';
+        mStartHandle.title = 'ลากจากจุดนี้ (Start) เพื่อเชื่อม Dependency';
+        attachLinkHandle(mStartHandle, t.id, 'start');
+        dia.appendChild(mStartHandle);
+
+        const mEndHandle = document.createElement('div');
+        mEndHandle.className = 'link-handle link-handle-end';
+        mEndHandle.dataset.taskId = t.id;
+        mEndHandle.dataset.edge = 'end';
+        mEndHandle.title = 'ลากจากจุดนี้ (Finish) เพื่อเชื่อม Dependency';
+        attachLinkHandle(mEndHandle, t.id, 'end');
+        dia.appendChild(mEndHandle);
+
+        bodyArea.appendChild(dia);
+
+        const lbl = document.createElement('div');
+        lbl.className = 'milestone-label-text';
+        lbl.style.left = (cx + 16) + "px";
+        lbl.style.top = (milestoneTop + 1) + "px";
+        lbl.textContent = `${t.start.slice(8,10)}/${t.start.slice(5,7)}: ${t.name}`;
+        bodyArea.appendChild(lbl);
+      } else {
+        // Render Standard Task Bar
+        const calendarSpan = diffDays(s, e) + 1;
+        const w = Math.max(calendarSpan * dayWidth, dayWidth);
+        const barTop = isComparing ? (rowY + 12) : (rowY + 6);
+        const barHeight = isComparing ? 22 : 26;
+
+        posMap[t.id] = { x: x, w: w, y: rowY + 19, isMilestone: false };
+
+        const bar = document.createElement('div');
+        bar.className = 'gantt-bar' + (isCritical ? ' critical' : '');
+        bar.style.left = x + "px";
+        bar.style.top = barTop + "px";
+        bar.style.height = barHeight + "px";
+        bar.style.width = w + "px";
+        bar.style.background = t.color || getStatusColor(t.status);
+        bar.title = `${t.name} (${t.progress}%)\n${t.start} ถึง ${t.end}\n[คลิกลากเพื่อย้ายวัน / ลากขอบขวาเพื่อยืดหดจำนวนวัน]`;
+
+        bar.innerHTML = `
+          <div class="bar-progress-fill" style="width:${t.progress}%"></div>
+          <div class="bar-content">
+            <span class="bar-state-icon" style="color:${t.color || getStatusColor(t.status)}">${getStatusIcon(t.status)}</span>
+            <span>${escapeHtml(t.name)} (${t.progress}%)</span>
+          </div>
+          <div class="bar-resize-handle" title="ลากขอบขวาเพื่อยืด/หดวัน"></div>
+        `;
+
+        bar.addEventListener('mousedown', ev => {
+          if(ev.button !== 0) return;
+          isDraggingBar = true; dragTask = t;
+          dragStartX = ev.clientX; dragOrigStart = parseDate(t.start); dragOrigEnd = parseDate(t.end);
+          if(ev.target.classList.contains('bar-resize-handle')){
+            dragMode = 'resize';
+          } else {
+            dragMode = 'move';
+          }
+          ev.stopPropagation();
+        });
+
+        bar.addEventListener('dblclick', () => openModal(t.id));
+
+        const startHandle = document.createElement('div');
+        startHandle.className = 'link-handle link-handle-start';
+        startHandle.dataset.taskId = t.id;
+        startHandle.dataset.edge = 'start';
+        startHandle.title = 'ลากจากจุดนี้ (Start) เพื่อเชื่อม Dependency';
+        attachLinkHandle(startHandle, t.id, 'start');
+        bar.appendChild(startHandle);
+
+        const endHandle = document.createElement('div');
+        endHandle.className = 'link-handle link-handle-end';
+        endHandle.dataset.taskId = t.id;
+        endHandle.dataset.edge = 'end';
+        endHandle.title = 'ลากจากจุดนี้ (Finish) เพื่อเชื่อม Dependency';
+        attachLinkHandle(endHandle, t.id, 'end');
+        bar.appendChild(endHandle);
+
+        bodyArea.appendChild(bar);
+      }
+    });
+
+    // Global Mouse Listeners for Timeline Bar Dragging
+    window.onmousemove = function(ev){
+      if(isLinking){ updateTempLinkLine(ev); return; }
+      if(!isDraggingBar || !dragTask) return;
+      const deltaX = ev.clientX - dragStartX;
+      const deltaDays = Math.round(deltaX / dayWidth);
+      if(deltaDays === 0) return;
+
+      const isSinglePoint = (dragTask.type === 'milestone' || dragTask.type === 'mark' || dragTask.milestone);
+
+      if(isSinglePoint || dragMode === 'move'){
+        const newStart = addDays(dragOrigStart, deltaDays);
+        const dur = isSinglePoint ? 0 : diffDays(dragOrigStart, dragOrigEnd);
+        const newEnd = addDays(newStart, dur);
+        dragTask.start = fmtDate(newStart);
+        dragTask.end = fmtDate(newEnd);
+      } else if(dragMode === 'resize'){
+        const dur = Math.max(1, diffDays(dragOrigStart, dragOrigEnd) + deltaDays);
+        const newEnd = addDays(dragOrigStart, dur);
+        dragTask.end = fmtDate(newEnd);
+      }
+      renderTimeline();
+    };
+
+    window.onmouseup = function(ev){
+      if(isLinking){ finishLinking(ev); return; }
+      if(isDraggingBar && dragTask){
+        isDraggingBar = false; dragTask = null;
+        render();
+      }
+    };
+
+    // Render Dependency Arrows (Supporting FS, SS, FF, SF Full Lag)
+    const svgNS = "http://www.w3.org/2000/svg";
+    visibleTasks.forEach(t => {
+      const normalized = normalizeDeps(t.deps);
+      normalized.forEach(dep => {
+        const p = posMap[dep.id], c = posMap[t.id];
+        if(!p || !c) return;
+
+        const isCriticalEdge = cp.criticalEdges.has(t.id + '->' + dep.id) || cp.criticalEdges.has(dep.id + '->' + t.id);
+
+        let startX = p.x + p.w, startY = p.y;
+        let endX = c.x, endY = c.y;
+
+        if(dep.type === 'SS'){
+          startX = p.x; endX = c.x;
+        } else if(dep.type === 'FF'){
+          startX = p.x + p.w; endX = c.x + c.w;
+        } else if(dep.type === 'SF'){
+          startX = p.x; endX = c.x + c.w;
+        }
+
+        const midX = (startX + endX) / 2;
+
+        const path = document.createElementNS(svgNS, "path");
+        path.setAttribute('d', `M ${startX} ${startY} H ${midX} V ${endY} H ${endX}`);
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke', isCriticalEdge ? '#E74C3C' : '#95A5A6');
+        path.setAttribute('stroke-width', isCriticalEdge ? '2.5' : '1.8');
+        if(!isCriticalEdge) path.setAttribute('stroke-dasharray', '4,3');
+        svgLayer.appendChild(path);
+
+        // Step 5: wide invisible hit-area over the same path so the thin line is easy to click/delete
+        const hitPath = document.createElementNS(svgNS, "path");
+        hitPath.setAttribute('d', path.getAttribute('d'));
+        hitPath.setAttribute('class', 'dep-path-hit');
+        hitPath.addEventListener('click', ev => {
+          ev.stopPropagation();
+          const predTask = tasks.find(x => x.id === dep.id);
+          const predName = predTask ? predTask.name : ('Task #' + dep.id);
+          if(confirm(`ลบเส้นเชื่อม Dependency "${predName}" → "${t.name}" (${dep.type}) หรือไม่?`)){
+            t.deps = normalizeDeps(t.deps).filter(d => !(d.id === dep.id && d.type === dep.type));
+            render();
+          }
+        });
+        svgLayer.appendChild(hitPath);
+      });
+    });
+
+    renderSCurve(min, max, dayWidth, totalWidth);
+  }
+
+  // --- DURATION-WEIGHTED S-CURVE RENDERER (PR-3) ---
+  function pctAt(d, s, e){
+    if(!s || !e) return 0;
+    if(e <= s) return d >= s ? 100 : 0;
+    if(d <= s) return 0;
+    if(d >= e) return 100;
+    return (diffDays(s, d) / diffDays(s, e)) * 100;
+  }
+
+  function renderSCurve(min, max, dayWidth, totalWidth){
+    const container = document.getElementById('scurveContainer');
+    if(!showSCurve){ container.innerHTML = ''; return; }
+
+    const activeTasks = tasks.filter(t => !t.hidden && t.status !== 'cancelled' && t.type !== 'mark' && t.type !== 'highlight' && t.start && t.end);
+    let totalWorkdaysSum = 0;
+    activeTasks.forEach(t => { totalWorkdaysSum += countWorkdaysBetween(t.start, t.end); });
+    if(totalWorkdaysSum <= 0) totalWorkdaysSum = 1;
+
+    const totalDays = diffDays(min, max);
+    const H = 160, padTop = 10, padBottom = 20, chartH = H - padTop - padBottom;
+
+    let plannedPts = [], actualPts = [];
+    for(let i = 0; i <= totalDays; i += Math.max(1, Math.floor(totalDays / 200))){
+      const d = addDays(min, i);
+      let sumP = 0, sumA = 0;
+      activeTasks.forEach(t => {
+        const taskDur = countWorkdaysBetween(t.start, t.end);
+        const weight = taskDur / totalWorkdaysSum;
+        const pPct = pctAt(d, parseDate(t.targetStart || t.start), parseDate(t.targetEnd || t.end));
+        const aPct = pctAt(d, parseDate(t.start), parseDate(t.end));
+        sumP += weight * pPct;
+        sumA += weight * aPct;
+      });
+      const x = i * dayWidth;
+      plannedPts.push(`${x},${padTop + chartH - (sumP / 100 * chartH)}`);
+      actualPts.push(`${x},${padTop + chartH - (sumA / 100 * chartH)}`);
+    }
+
+    const gridLines = [0, 25, 50, 75, 100].map(p => {
+      const y = padTop + chartH - (p / 100 * chartH);
+      return `<line x1="0" y1="${y}" x2="${totalWidth}" y2="${y}" stroke="#E4E9EC" stroke-width="1"/><text x="4" y="${y - 3}" font-size="9" fill="#7F8C8D" font-family="monospace">${p}%</text>`;
+    }).join('');
+
+    container.innerHTML = `
+      <div class="scurve-panel">
+        <div class="scurve-title">📈 S-Curve (Duration-Weighted Progress — ประมาณการความก้าวหน้าสะสมถ่วงน้ำหนักตามระยะเวลา)</div>
+        <svg width="${totalWidth}" height="${H}">
+          ${gridLines}
+          <polyline points="${plannedPts.join(' ')}" fill="none" stroke="#95A5A6" stroke-width="2" stroke-dasharray="5,4"/>
+          <polyline points="${actualPts.join(' ')}" fill="none" stroke="#3498DB" stroke-width="2.5"/>
+        </svg>
+      </div>`;
+  }
+
+  // --- TIMESCALE MODAL CONTROLLER ---
+  function openTimescaleModal(){
+    document.getElementById('tsYears').checked = timescaleTiers.years;
+    document.getElementById('tsQuarters').checked = timescaleTiers.quarters;
+    document.getElementById('tsMonths').checked = timescaleTiers.months;
+    document.getElementById('tsWeeks').checked = timescaleTiers.weeks;
+    document.getElementById('tsDays').checked = timescaleTiers.days;
+    document.getElementById('timescaleModal').classList.add('open');
+  }
+
+  document.getElementById('btnCloseTsModal').addEventListener('click', () => {
+    timescaleTiers.years = document.getElementById('tsYears').checked;
+    timescaleTiers.quarters = document.getElementById('tsQuarters').checked;
+    timescaleTiers.months = document.getElementById('tsMonths').checked;
+    timescaleTiers.weeks = document.getElementById('tsWeeks').checked;
+    timescaleTiers.days = document.getElementById('tsDays').checked;
+    document.getElementById('timescaleModal').classList.remove('open');
+    render();
+  });
+
+  document.getElementById('modalProgress').addEventListener('input', e => {
+    let v = parseInt(e.target.value, 10);
+    if(isNaN(v)) return;
+    if(v > 100) e.target.value = 100;
+    if(v < 0) e.target.value = 0;
+  });
+
+  document.getElementById('btnOpenTimescale').addEventListener('click', openTimescaleModal);
+  document.getElementById('menuOpenTimescale').addEventListener('click', () => { closeDrawer(); openTimescaleModal(); });
+
+  // --- MODAL DIALOG CONTROLLER ---
+  function updateModalDateFieldsUI(typeVal){
+    const isSingleDate = (typeVal === 'milestone' || typeVal === 'mark');
+    const isMarkOrHighlight = (typeVal === 'mark' || typeVal === 'highlight');
+    const labelStart = document.getElementById('labelStart');
+    const groupWeekdays = document.getElementById('groupWeekdays');
+    const groupEnd = document.getElementById('groupEnd');
+    const groupHideItem = document.getElementById('groupHideItem');
+    const groupRollup = document.getElementById('groupRollup');
+    const arrows = document.querySelectorAll('.date-arrow-icon');
+
+    if(isSingleDate){
+      labelStart.textContent = 'Date (วันที่กำหนด)';
+      groupWeekdays.style.display = 'none';
+      groupEnd.style.display = 'none';
+      arrows.forEach(a => a.style.display = 'none');
+    } else {
+      labelStart.textContent = 'Start Date (วันเริ่ม)';
+      groupWeekdays.style.display = 'flex';
+      groupEnd.style.display = 'flex';
+      arrows.forEach(a => a.style.display = 'inline-block');
+    }
+
+    if(isMarkOrHighlight){
+      groupHideItem.style.display = 'flex';
+      groupRollup.style.display = 'none';
+    } else {
+      groupHideItem.style.display = 'none';
+      groupRollup.style.display = 'flex';
+    }
+  }
+
+  let modalTaskBackup = null;
+
+  function liveSyncModalChanges(){
+    if(activeEditingTaskId == null) return;
+    const t = tasks.find(x => x.id === activeEditingTaskId);
+    if(!t) return;
+    const s = document.getElementById('modalStart').value;
+    const e = document.getElementById('modalEnd').value;
+    const itemType = document.getElementById('modalType').value;
+    if(s && e){
+      t.start = s;
+      t.end = (itemType === 'milestone' || itemType === 'mark') ? s : e;
+      t.type = itemType;
+      t.name = document.getElementById('modalName').value || t.name;
+      render();
+    }
+  }
+
+  function openModal(taskId){
+    const t = tasks.find(x => x.id === taskId);
+    if(!t) return;
+    activeEditingTaskId = taskId;
+    modalTaskBackup = JSON.parse(JSON.stringify(t)); // Backup snapshot for Cancel restore
+
+    document.getElementById('modalName').value = t.name || '';
+    document.getElementById('modalColor').value = t.color || getStatusColor(t.status);
+    const itemType = t.type || (t.milestone ? 'milestone' : 'task');
+    document.getElementById('modalType').value = itemType;
+    document.getElementById('modalStart').value = t.start || '';
+
+    // Enforce valid end date boundary on open
+    let validEnd = t.end || t.start;
+    if(t.start && validEnd && parseDate(validEnd) < parseDate(t.start)){
+      validEnd = (itemType === 'milestone' || itemType === 'mark') ? t.start : calculateEndDateByWorkdays(t.start, 1);
+    }
+    document.getElementById('modalEnd').value = (itemType === 'milestone' || itemType === 'mark') ? t.start : validEnd;
+    document.getElementById('modalWeekdays').value = countWorkdaysBetween(t.start, validEnd);
+    document.getElementById('modalHideItem').checked = !!t.hidden;
+    document.getElementById('modalRollup').checked = (t.progressMode === 'auto');
+    document.getElementById('modalStatus').value = t.status || 'inprogress';
+    document.getElementById('modalProgress').value = t.progress || 0;
+    document.getElementById('modalDeps').value = formatDepsString(t.deps);
+    document.getElementById('modalDesc').value = t.desc || '';
+    document.getElementById('modalOwner').value = t.owner || '';
+
+    updateModalDateFieldsUI(itemType);
+    switchTab('general');
+    document.getElementById('taskModal').classList.add('open');
+  }
+
+  function closeModal(wasSaved){
+    if(!wasSaved && activeEditingTaskId != null && modalTaskBackup){
+      const idx = tasks.findIndex(x => x.id === activeEditingTaskId);
+      if(idx !== -1){
+        tasks[idx] = JSON.parse(JSON.stringify(modalTaskBackup));
+        render();
+      }
+    }
+    document.getElementById('taskModal').classList.remove('open');
+    activeEditingTaskId = null;
+    modalTaskBackup = null;
+  }
+
+  function switchTab(tabName){
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === tabName);
+    });
+    document.querySelectorAll('.tab-content').forEach(content => {
+      content.classList.toggle('active', content.id === 'tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1));
+    });
+  }
+
+  document.getElementById('modalType').addEventListener('change', e => {
+    updateModalDateFieldsUI(e.target.value);
+    liveSyncModalChanges();
+  });
+
+  document.getElementById('modalName').addEventListener('input', () => {
+    liveSyncModalChanges();
+  });
+
+  document.getElementById('modalStart').addEventListener('change', e => {
+    const s = e.target.value;
+    const typeVal = document.getElementById('modalType').value;
+    if(typeVal === 'milestone' || typeVal === 'mark'){
+      document.getElementById('modalEnd').value = s;
+    } else {
+      const w = parseInt(document.getElementById('modalWeekdays').value || "1", 10);
+      if(s) document.getElementById('modalEnd').value = calculateEndDateByWorkdays(s, w);
+    }
+    liveSyncModalChanges();
+  });
+
+  document.getElementById('modalWeekdays').addEventListener('change', e => {
+    const w = Math.max(1, parseInt(e.target.value || "1", 10));
+    const s = document.getElementById('modalStart').value;
+    if(s) document.getElementById('modalEnd').value = calculateEndDateByWorkdays(s, w);
+    liveSyncModalChanges();
+  });
+
+  document.getElementById('modalEnd').addEventListener('change', e => {
+    const s = document.getElementById('modalStart').value, endVal = e.target.value;
+    if(s && endVal){
+      if(parseDate(endVal) < parseDate(s)){
+        alert('⚠️ บันทึกไม่ได้: วันสิ้นสุด (End Date) ต้องไม่มาก่อนวันเริ่มต้น (Start Date)');
+        const w = Math.max(1, parseInt(document.getElementById('modalWeekdays').value || "1", 10));
+        document.getElementById('modalEnd').value = calculateEndDateByWorkdays(s, w);
+        liveSyncModalChanges();
+        return;
+      }
+      document.getElementById('modalWeekdays').value = countWorkdaysBetween(s, endVal);
+      liveSyncModalChanges();
+    }
+  });
+
+  document.getElementById('btnModalSave').addEventListener('click', () => {
+    if(activeEditingTaskId == null) return;
+    const t = tasks.find(x => x.id === activeEditingTaskId);
+    if(!t) return;
+
+    const newDeps = parseDepsInput(document.getElementById('modalDeps').value);
+    const cyclicDep = newDeps.find(d => wouldCreateCycle(d.id, t.id));
+    if(cyclicDep){
+      const depTask = tasks.find(x => x.id === cyclicDep.id);
+      alert(`⚠️ บันทึกไม่ได้: Predecessor "${depTask ? depTask.name : ('Task #' + cyclicDep.id)}" จะทำให้เกิด Circular Dependency (วนลูปกลับมาที่ Task นี้เอง) กรุณาแก้ไขช่อง Predecessors ก่อนบันทึก`);
+      return;
+    }
+
+    t.name = document.getElementById('modalName').value.trim() || 'Task ไม่มีชื่อ';
+    t.color = document.getElementById('modalColor').value;
+    t.type = document.getElementById('modalType').value;
+    t.milestone = (t.type === 'milestone');
+    t.start = document.getElementById('modalStart').value;
+    t.end = (t.type === 'milestone' || t.type === 'mark') ? t.start : document.getElementById('modalEnd').value;
+    t.hidden = (t.type === 'mark' || t.type === 'highlight') ? document.getElementById('modalHideItem').checked : false;
+    t.progressMode = document.getElementById('modalRollup').checked ? 'auto' : 'manual';
+    t.status = document.getElementById('modalStatus').value;
+    t.progress = Math.max(0, Math.min(100, parseInt(document.getElementById('modalProgress').value || "0", 10) || 0));
+    t.desc = document.getElementById('modalDesc').value;
+    t.owner = document.getElementById('modalOwner').value;
+    t.deps = newDeps;
+
+    closeModal(true);
+    render();
+  });
+
+  document.getElementById('btnModalCancel').addEventListener('click', () => closeModal(false));
+
+  document.getElementById('btnModalDelete').addEventListener('click', () => {
+    if(activeEditingTaskId == null) return;
+    if(!confirm('ยืนยันลบรายการนี้หรือไม่?')) return;
+    tasks = tasks.filter(x => x.id !== activeEditingTaskId);
+    closeModal(true);
+    render();
+  });
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', e => switchTab(e.target.dataset.tab));
+  });
+
+  // --- WORKING CALENDAR CONTROLLER ---
+  function openCalendarModal(){
+    document.getElementById('calStartTime').value = workingCalendar.startTime || '08:00';
+    document.getElementById('calEndTime').value = workingCalendar.endTime || '17:30';
+    document.getElementById('calBreakStart').value = workingCalendar.breakStart || '12:00';
+    document.getElementById('calBreakEnd').value = workingCalendar.breakEnd || '13:00';
+    document.getElementById('workSun').checked = workingCalendar.workdays.includes(0);
+    document.getElementById('workMon').checked = workingCalendar.workdays.includes(1);
+    document.getElementById('workTue').checked = workingCalendar.workdays.includes(2);
+    document.getElementById('workWed').checked = workingCalendar.workdays.includes(3);
+    document.getElementById('workThu').checked = workingCalendar.workdays.includes(4);
+    document.getElementById('workFri').checked = workingCalendar.workdays.includes(5);
+    document.getElementById('workSat').checked = workingCalendar.workdays.includes(6);
+    document.getElementById('calendarModal').classList.add('open');
+  }
+
+  // Quick Shift Buttons in Calendar Settings Modal
+  document.querySelectorAll('.cal-quick-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      document.getElementById('calStartTime').value = e.target.dataset.s;
+      document.getElementById('calEndTime').value = e.target.dataset.e;
+      if(e.target.dataset.bs !== undefined) document.getElementById('calBreakStart').value = e.target.dataset.bs;
+      if(e.target.dataset.be !== undefined) document.getElementById('calBreakEnd').value = e.target.dataset.be;
+    });
+  });
+
+  document.getElementById('btnCloseCalModal').addEventListener('click', () => {
+    workingCalendar.startTime = document.getElementById('calStartTime').value;
+    workingCalendar.endTime = document.getElementById('calEndTime').value;
+    workingCalendar.breakStart = document.getElementById('calBreakStart').value;
+    workingCalendar.breakEnd = document.getElementById('calBreakEnd').value;
+    workingCalendar.workdays = [];
+    if(document.getElementById('workSun').checked) workingCalendar.workdays.push(0);
+    if(document.getElementById('workMon').checked) workingCalendar.workdays.push(1);
+    if(document.getElementById('workTue').checked) workingCalendar.workdays.push(2);
+    if(document.getElementById('workWed').checked) workingCalendar.workdays.push(3);
+    if(document.getElementById('workThu').checked) workingCalendar.workdays.push(4);
+    if(document.getElementById('workFri').checked) workingCalendar.workdays.push(5);
+    if(document.getElementById('workSat').checked) workingCalendar.workdays.push(6);
+    document.getElementById('calendarModal').classList.remove('open');
+    render();
+  });
+
+  document.getElementById('btnOpenCalendar').addEventListener('click', openCalendarModal);
+  document.getElementById('menuOpenCalendar').addEventListener('click', () => { closeDrawer(); openCalendarModal(); });
+
+  // --- MARKS & HIGHLIGHTS BULK MODAL CONTROLLER WITH HIDE TOGGLE ---
+  function renderMHModal(){
+    const marks = tasks.filter(t => t.type === 'mark');
+    const mContainer = document.getElementById('markListContainer');
+    mContainer.innerHTML = marks.map((m) => `
+      <div class="mh-item-row" data-id="${m.id}">
+        <input type="date" class="form-input m-date" value="${m.start}" style="flex:0 0 130px;">
+        <input type="text" class="form-input m-label" value="${escapeHtml(m.name)}" placeholder="ชื่อ Mark">
+        <input type="color" class="m-color" value="${m.color || '#E74C3C'}" style="width:30px; height:28px; border:none; cursor:pointer;">
+        <label class="checkbox-group" style="font-size:11.5px; margin:0;"><input type="checkbox" class="m-hide" ${m.hidden?'checked':''}> ซ่อน</label>
+        <button class="btn-modal danger m-del" style="padding:2px 8px; font-size:11px;">✕</button>
+      </div>`).join('') || '<div style="font-size:12px; color:#95A5A6;">ยังไม่มี Mark</div>';
+
+    mContainer.querySelectorAll('.mh-item-row').forEach((row) => {
+      const id = +row.dataset.id;
+      row.querySelector('.m-date').addEventListener('change', e => { const t = tasks.find(x => x.id === id); if(t){ t.start = e.target.value; t.end = e.target.value; render(); } });
+      row.querySelector('.m-label').addEventListener('input', e => { const t = tasks.find(x => x.id === id); if(t){ t.name = e.target.value; render(); } });
+      row.querySelector('.m-color').addEventListener('change', e => { const t = tasks.find(x => x.id === id); if(t){ t.color = e.target.value; render(); } });
+      row.querySelector('.m-hide').addEventListener('change', e => { const t = tasks.find(x => x.id === id); if(t){ t.hidden = e.target.checked; render(); } });
+      row.querySelector('.m-del').addEventListener('click', () => { tasks = tasks.filter(x => x.id !== id); renderMHModal(); render(); });
+    });
+
+    const highlights = tasks.filter(t => t.type === 'highlight');
+    const hContainer = document.getElementById('highlightListContainer');
+    hContainer.innerHTML = highlights.map((h) => `
+      <div class="mh-item-row" data-id="${h.id}">
+        <input type="date" class="form-input h-start" value="${h.start}" style="flex:0 0 120px;">
+        <span>→</span>
+        <input type="date" class="form-input h-end" value="${h.end}" style="flex:0 0 120px;">
+        <input type="text" class="form-input h-label" value="${escapeHtml(h.name)}" placeholder="ชื่อพื้นที่ไฮไลท์">
+        <input type="color" class="h-color" value="${h.color || '#2ECC71'}" style="width:30px; height:28px; border:none; cursor:pointer;">
+        <label class="checkbox-group" style="font-size:11.5px; margin:0;"><input type="checkbox" class="h-hide" ${h.hidden?'checked':''}> ซ่อน</label>
+        <button class="btn-modal danger h-del" style="padding:2px 8px; font-size:11px;">✕</button>
+      </div>`).join('') || '<div style="font-size:12px; color:#95A5A6;">ยังไม่มี Highlight</div>';
+
+    hContainer.querySelectorAll('.mh-item-row').forEach((row) => {
+      const id = +row.dataset.id;
+      row.querySelector('.h-start').addEventListener('change', e => { const t = tasks.find(x => x.id === id); if(t){ t.start = e.target.value; render(); } });
+      row.querySelector('.h-end').addEventListener('change', e => { const t = tasks.find(x => x.id === id); if(t){ t.end = e.target.value; render(); } });
+      row.querySelector('.h-label').addEventListener('input', e => { const t = tasks.find(x => x.id === id); if(t){ t.name = e.target.value; render(); } });
+      row.querySelector('.h-color').addEventListener('change', e => { const t = tasks.find(x => x.id === id); if(t){ t.color = e.target.value; render(); } });
+      row.querySelector('.h-hide').addEventListener('change', e => { const t = tasks.find(x => x.id === id); if(t){ t.hidden = e.target.checked; render(); } });
+      row.querySelector('.h-del').addEventListener('click', () => { tasks = tasks.filter(x => x.id !== id); renderMHModal(); render(); });
+    });
+  }
+
+  document.getElementById('btnAddMarkBtn').addEventListener('click', () => {
+    tasks.push({ id: nextId++, name: "Mark ใหม่", type: "mark", status: "delay", color: "#E74C3C", start: fmtDate(new Date()), end: fmtDate(new Date()), progress: 0, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", hidden: false });
+    renderMHModal(); render();
+  });
+
+  document.getElementById('btnAddHighlightBtn').addEventListener('click', () => {
+    tasks.push({ id: nextId++, name: "Highlight ใหม่", type: "highlight", status: "inprogress", color: "#2ECC71", start: fmtDate(new Date()), end: fmtDate(addDays(new Date(), 7)), progress: 0, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", hidden: false });
+    renderMHModal(); render();
+  });
+
+  document.getElementById('btnOpenMH').addEventListener('click', () => { renderMHModal(); document.getElementById('mhModal').classList.add('open'); });
+  document.getElementById('menuOpenMH').addEventListener('click', () => { closeDrawer(); renderMHModal(); document.getElementById('mhModal').classList.add('open'); });
+  document.getElementById('btnCloseMHModal').addEventListener('click', () => document.getElementById('mhModal').classList.remove('open'));
+
+  // --- BASELINE SNAPSHOT HISTORY CONTROLLER ---
+  function captureBaselineSnapshot(label){
+    const snapshot = {};
+    tasks.forEach(t => { snapshot[t.id] = { targetStart: t.start, targetEnd: t.end, name: t.name }; });
+    const entry = {
+      id: nextHistId++,
+      label: label && label.trim() ? label.trim() : ('Snapshot ' + new Date().toLocaleString('th-TH')),
+      savedAt: new Date().toISOString(),
+      snapshot
+    };
+    baselineHistory.push(entry);
+    saveToStorage();
+    return entry;
+  }
+
+  function renderHistoryModal(){
+    const container = document.getElementById('historyListContainer');
+    if(!baselineHistory.length){
+      container.innerHTML = '<div style="font-size:12px; color:#95A5A6;">ยังไม่มี Baseline Snapshot ที่บันทึกไว้</div>';
+      return;
+    }
+
+    container.innerHTML = baselineHistory.slice().reverse().map(h => {
+      const isComparing = compareVersionId === h.id;
+      return `
+        <div class="mh-item-row" data-id="${h.id}">
+          <div style="flex:1;">
+            <b>${escapeHtml(h.label)}</b>
+            <div style="font-size:10.5px; color:#7F8C8D;">${new Date(h.savedAt).toLocaleString('th-TH')} · ${Object.keys(h.snapshot).length} Tasks</div>
+          </div>
+          <button class="btn-modal ghost hist-compare" data-id="${h.id}" style="padding:3px 8px; font-size:11px; ${isComparing?'background:#E8F4FC; color:#3498DB; font-weight:bold;':''}">
+            👁 ${isComparing ? 'กำลังเทียบ' : 'เทียบ'}
+          </button>
+          <button class="btn-modal ghost hist-restore" data-id="${h.id}" style="padding:3px 8px; font-size:11px;">⤴ Restore</button>
+          <button class="btn-modal danger hist-del" data-id="${h.id}" style="padding:3px 8px; font-size:11px;">✕</button>
+        </div>`;
+    }).join('');
+
+    container.querySelectorAll('.hist-compare').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = +btn.dataset.id;
+        compareVersionId = (compareVersionId === id) ? null : id;
+        renderHistoryModal(); renderTimeline();
+      });
+    });
+
+    container.querySelectorAll('.hist-restore').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = +btn.dataset.id;
+        const entry = baselineHistory.find(x => x.id === id);
+        if(!confirm(`Restore แผนงาน "${entry.label}" ?\nวันที่ของทุก Task จะถูกย้อนกลับตาม Snapshot นี้`)) return;
+        tasks.forEach(t => {
+          const snap = entry.snapshot[t.id];
+          if(snap){ t.start = snap.targetStart; t.end = snap.targetEnd; }
+        });
+        render();
+        document.getElementById('historyModal').classList.remove('open');
+      });
+    });
+
+    container.querySelectorAll('.hist-del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = +btn.dataset.id;
+        if(!confirm('ลบ Snapshot นี้ทิ้งหรือไม่?')) return;
+        baselineHistory = baselineHistory.filter(x => x.id !== id);
+        if(compareVersionId === id) compareVersionId = null;
+        renderHistoryModal(); renderTimeline(); saveToStorage();
+      });
+    });
+  }
+
+  document.getElementById('btnSaveNewVersionModal').addEventListener('click', () => {
+    const label = prompt('ตั้งชื่อ Baseline Snapshot นี้:', '');
+    if(label === null) return;
+    captureBaselineSnapshot(label);
+    renderHistoryModal();
+  });
+
+  document.getElementById('btnOpenHistory').addEventListener('click', () => { renderHistoryModal(); document.getElementById('historyModal').classList.add('open'); });
+  document.getElementById('menuOpenHistory').addEventListener('click', () => { closeDrawer(); renderHistoryModal(); document.getElementById('historyModal').classList.add('open'); });
+  document.getElementById('menuSaveVersion').addEventListener('click', () => {
+    closeDrawer();
+    const label = prompt('ตั้งชื่อ Baseline Snapshot นี้:', '');
+    if(label === null) return;
+    captureBaselineSnapshot(label);
+    renderHistoryModal();
+    document.getElementById('historyModal').classList.add('open');
+  });
+  document.getElementById('btnCloseHistoryModal').addEventListener('click', () => document.getElementById('historyModal').classList.remove('open'));
+
+  // --- TOGGLE ANALYSIS BUTTONS ---
+  function updateToggleBtnStyles(){
+    document.getElementById('btnToggleCP').classList.toggle('active', showCriticalPath);
+    document.getElementById('btnToggleSCurve').classList.toggle('active', showSCurve);
+  }
+
+  document.getElementById('btnToggleCP').addEventListener('click', () => {
+    showCriticalPath = !showCriticalPath; updateToggleBtnStyles(); renderTimeline(); saveToStorage();
+  });
+  document.getElementById('menuToggleCP').addEventListener('click', () => {
+    closeDrawer(); showCriticalPath = !showCriticalPath; updateToggleBtnStyles(); renderTimeline(); saveToStorage();
+  });
+
+  document.getElementById('btnToggleSCurve').addEventListener('click', () => {
+    showSCurve = !showSCurve; updateToggleBtnStyles(); renderTimeline(); saveToStorage();
+  });
+  document.getElementById('menuToggleSCurve').addEventListener('click', () => {
+    closeDrawer(); showSCurve = !showSCurve; updateToggleBtnStyles(); renderTimeline(); saveToStorage();
+  });
+
+  // --- DATE RANGE CONTROL EVENTS ---
+  document.getElementById('btnApplyRange').addEventListener('click', () => {
+    const s = document.getElementById('rangeStartInput').value;
+    const e = document.getElementById('rangeEndInput').value;
+    if(!s || !e){ alert('กรุณาระบุวันเริ่มและวันสิ้นสุด'); return; }
+    if(parseDate(e) < parseDate(s)){ alert('วันสิ้นสุดต้องไม่มาก่อนวันเริ่มต้น'); return; }
+    viewMode = 'manual';
+    viewStart = s;
+    viewEnd = e;
+    renderTimeline();
+    saveToStorage();
+  });
+
+  document.getElementById('btnAutoRange').addEventListener('click', () => {
+    viewMode = 'auto';
+    syncRangeInputs();
+    renderTimeline();
+    saveToStorage();
+  });
+
+  // --- TOP CONTROL BAR EVENTS ---
+  document.querySelectorAll('.zoom-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      document.querySelectorAll('.zoom-btn').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      currentZoom = e.target.dataset.zoom;
+      renderTimeline();
+    });
+  });
+
+  document.getElementById('btnAddTopTask').addEventListener('click', () => {
+    const today = fmtDate(new Date());
+    const endDate = calculateEndDateByWorkdays(today, 7);
+    const newTask = {
+      id: nextId++, name: "Task ใหม่", type: "task", status: "inprogress", color: "#3498DB",
+      start: today, end: endDate, targetStart: today, targetEnd: endDate,
+      progress: 0, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", hidden: false
+    };
+    tasks.push(newTask);
+    render();
+    openModal(newTask.id);
+  });
+
+  // --- DRAWER MENU CONTROLLER ---
+  const drawerOverlay = document.getElementById('drawerOverlay');
+  const drawerMenu = document.getElementById('drawerMenu');
+
+  function openDrawer(){ drawerOverlay.classList.add('open'); drawerMenu.classList.add('open'); }
+  function closeDrawer(){ drawerOverlay.classList.remove('open'); drawerMenu.classList.remove('open'); }
+
+  document.getElementById('btnToggleDrawer').addEventListener('click', openDrawer);
+  drawerOverlay.addEventListener('click', closeDrawer);
+
+  // --- HELP / USER MANUAL PANEL CONTROLLER ---
+  const helpOverlay = document.getElementById('helpOverlay');
+  const helpPanel = document.getElementById('helpPanel');
+  const helpBodyContent = document.getElementById('helpBodyContent');
+
+  function openHelp(){ helpOverlay.classList.add('open'); helpPanel.classList.add('open'); }
+  function closeHelp(){ helpOverlay.classList.remove('open'); helpPanel.classList.remove('open'); }
+
+  document.getElementById('btnOpenHelp').addEventListener('click', openHelp);
+  document.getElementById('menuOpenHelp').addEventListener('click', () => { closeDrawer(); openHelp(); });
+  document.getElementById('btnCloseHelp').addEventListener('click', closeHelp);
+  helpOverlay.addEventListener('click', closeHelp);
+
+  // Smooth in-panel scroll for the Table of Contents links (scrolls within the help panel only)
+  document.querySelectorAll('.help-toc a').forEach(link => {
+    link.addEventListener('click', ev => {
+      ev.preventDefault();
+      const target = document.getElementById(link.getAttribute('href').slice(1));
+      if(target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  // PR-1: Fix "Create another plan..." (Option A - Simple Reset + Export Warning)
+  document.getElementById('menuAddPlan').addEventListener('click', () => {
+    closeDrawer();
+    if(confirm('สร้างแผนงานใหม่หรือไม่?\n\nคำเตือน: ข้อมูลแผนงานปัจจุบันบนหน้าจอจะถูกล้างกลับเป็นแผนตัวอย่าง (Sample Plan) หากยังไม่ได้ Export สำรองข้อมูล แนะนำให้กดยกเลิกแล้วกด Export JSON ก่อนดำเนินการ')){
+      tasks = JSON.parse(JSON.stringify(defaultTasks));
+      baselineHistory = JSON.parse(JSON.stringify(defaultBaselineHistory));
+      workingCalendar = JSON.parse(JSON.stringify(defaultWorkingCalendar));
+      timescaleTiers = JSON.parse(JSON.stringify(defaultTimescaleTiers));
+      nextId = DEFAULT_NEXT_ID;
+      nextHistId = DEFAULT_NEXT_HIST_ID;
+      document.getElementById('projectNameInput').value = DEFAULT_PROJECT_NAME;
+      render();
+      alert('สร้างแผนงานใหม่เรียบร้อยแล้ว (โหลดจาก Sample Plan)');
+    }
+  });
+
+  document.getElementById('menuExportJSON').addEventListener('click', () => {
+    const payload = { projectName: document.getElementById('projectNameInput').value, tasks, baselineHistory, workingCalendar, timescaleTiers };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = "gantt-plan-v6.json"; a.click();
+    closeDrawer();
+  });
+
+  document.getElementById('menuExportCSV').addEventListener('click', () => {
+    const headers = ['id','name','type','status','start','end','progress','owner'];
+    const rows = [headers.join(',')];
+    tasks.forEach(t => {
+      rows.push([t.id, `"${t.name}"`, t.type, t.status, t.start, t.end, t.progress, `"${t.owner||''}"`].join(','));
+    });
+    const csvContent = '\uFEFF' + rows.join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = "gantt-plan-v6.csv"; a.click();
+    closeDrawer();
+  });
+
+  document.getElementById('menuImportJSON').addEventListener('click', () => {
+    document.getElementById('fileImportInput').click();
+    closeDrawer();
+  });
+
+  document.getElementById('fileImportInput').addEventListener('change', e => {
+    const file = e.target.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const raw = JSON.parse(reader.result);
+        if(Array.isArray(raw.tasks)){
+          tasks = raw.tasks;
+          tasks.forEach(t => {
+            t.deps = normalizeDeps(t.deps);
+            if(t.hidden === undefined) t.hidden = false;
+          });
+          if(raw.projectName) document.getElementById('projectNameInput').value = raw.projectName;
+          if(Array.isArray(raw.baselineHistory)) baselineHistory = raw.baselineHistory;
+          if(raw.workingCalendar) workingCalendar = raw.workingCalendar;
+          if(raw.timescaleTiers) timescaleTiers = raw.timescaleTiers;
+          nextId = Math.max(...tasks.map(t=>t.id), 0) + 1;
+          render();
+          alert('Import ข้อมูลเรียบร้อยแล้ว');
+        }
+      } catch(err){ alert('ไฟล์ไม่ถูกต้อง'); }
+    };
+    reader.readAsText(file);
+  });
+
+  // Clean Print Function (Full A4 Landscape Print without Tiny Shrinking)
+  function triggerA4Print(){
+    window.print();
+  }
+
+  document.getElementById('menuExportPDF').addEventListener('click', () => { closeDrawer(); triggerA4Print(); });
+  document.getElementById('btnQuickExport').addEventListener('click', () => { triggerA4Print(); });
+  document.getElementById('menuExportPNG').addEventListener('click', () => { closeDrawer(); triggerA4Print(); });
+
+  document.getElementById('menuResetSample').addEventListener('click', () => {
+    if(confirm('ล้างข้อมูลแล้วกลับไปใช้แผนงานตัวอย่างหรือไม่?')){
+      tasks = JSON.parse(JSON.stringify(defaultTasks));
+      baselineHistory = JSON.parse(JSON.stringify(defaultBaselineHistory));
+      workingCalendar = JSON.parse(JSON.stringify(defaultWorkingCalendar));
+      timescaleTiers = JSON.parse(JSON.stringify(defaultTimescaleTiers));
+      nextId = DEFAULT_NEXT_ID;
+      nextHistId = DEFAULT_NEXT_HIST_ID;
+      document.getElementById('projectNameInput').value = DEFAULT_PROJECT_NAME;
+      render();
+      closeDrawer();
+    }
+  });
+
+  // --- SCROLL SYNC: keep sidebar task rows aligned with gantt bars while scrolling vertically ---
+  (function setupScrollSync(){
+    const treeEl = document.getElementById('taskTreeContainer');
+    const wrapEl = document.getElementById('timelineWrapper');
+    let syncing = false;
+    treeEl.addEventListener('scroll', () => {
+      if(syncing) return;
+      syncing = true;
+      wrapEl.scrollTop = treeEl.scrollTop;
+      syncing = false;
+    });
+    wrapEl.addEventListener('scroll', () => {
+      if(syncing) return;
+      syncing = true;
+      treeEl.scrollTop = wrapEl.scrollTop;
+      syncing = false;
+    });
+  })();
+
+  // --- GOOGLE DRIVE CLOUD SYNC MODULE ---
+  const googleDriveModal = document.getElementById('googleDriveModal');
+  let tokenClient = null;
+  let gdriveAccessToken = null;
+
+  function openGoogleDriveModal(){
+    googleDriveModal.classList.add('open');
+    const savedClientId = localStorage.getItem('gdrive_client_id') || '';
+    document.getElementById('gdriveClientId').value = savedClientId;
+  }
+
+  function closeGoogleDriveModal(){
+    googleDriveModal.classList.remove('open');
+  }
+
+  document.getElementById('btnGoogleSync').addEventListener('click', openGoogleDriveModal);
+  document.getElementById('menuGoogleSync').addEventListener('click', () => { closeDrawer(); openGoogleDriveModal(); });
+  document.getElementById('btnCloseGDriveModal').addEventListener('click', closeGoogleDriveModal);
+
+  document.getElementById('btnGDriveLogin').addEventListener('click', () => {
+    const clientId = document.getElementById('gdriveClientId').value.trim();
+    if(!clientId){
+      alert('กรุณาป้อน Google OAuth Client ID ก่อนทำการ Sign in');
+      return;
+    }
+    localStorage.setItem('gdrive_client_id', clientId);
+    if(typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2){
+      alert('ระบบกำลังโหลด Google API Client กรุณาลองใหม่อีกครั้งในอีกสักครู่');
+      return;
+    }
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.appdata',
+      callback: (tokenResponse) => {
+        if(tokenResponse && tokenResponse.access_token){
+          gdriveAccessToken = tokenResponse.access_token;
+          document.getElementById('gdriveAuthStatus').textContent = 'เชื่อมต่อแล้ว ✓';
+          document.getElementById('gdriveAuthStatus').style.color = '#27AE60';
+          fetchGoogleDriveFiles();
+        }
+      }
+    });
+    tokenClient.requestAccessToken();
+  });
+
+  async function fetchGoogleDriveFiles(){
+    if(!gdriveAccessToken) return;
+    try {
+      const res = await fetch("https://www.googleapis.com/drive/v3/files?q=name%20contains%20'gantt'", {
+        headers: { 'Authorization': 'Bearer ' + gdriveAccessToken }
+      });
+      const data = await res.json();
+      const listEl = document.getElementById('gdriveFileList');
+      if(data.files && data.files.length){
+        listEl.innerHTML = data.files.map(f => `
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:4px 0; border-bottom:1px solid #EEE;">
+            <span>📄 <b>${escapeHtml(f.name)}</b></span>
+            <button class="quick-shift-btn" onclick="window.loadGDriveFileById('${f.id}')">โหลดไฟล์นี้</button>
+          </div>
+        `).join('');
+      } else {
+        listEl.innerHTML = '<div style="color:#7F8C8D; text-align:center; padding:10px;">ยังไม่พบไฟล์แผนงานบน Google Drive</div>';
+      }
+    } catch(err){ console.error(err); }
+  }
+
+  document.getElementById('btnSaveToGDrive').addEventListener('click', async () => {
+    if(!gdriveAccessToken){
+      alert('กรุณาทำ Sign in with Google ก่อนบันทึกไฟล์');
+      return;
+    }
+    const payload = {
+      projectName: document.getElementById('projectNameInput').value,
+      tasks, baselineHistory, currentZoom, showCriticalPath, showSCurve,
+      viewMode, viewStart, viewEnd, workingCalendar, timescaleTiers,
+      savedAt: new Date().toISOString()
+    };
+    const fileName = (document.getElementById('projectNameInput').value || 'gantt-plan') + '.json';
+    const metadata = { name: fileName, mimeType: 'application/json' };
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+    form.append('file', new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
+
+    try {
+      const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + gdriveAccessToken },
+        body: form
+      });
+      if(res.ok){
+        alert('บันทึกแผนงานลง Google Drive สำเร็จ!');
+        fetchGoogleDriveFiles();
+      } else {
+        alert('เกิดข้อผิดพลาดในการบันทึก Google Drive');
+      }
+    } catch(e){ alert('ไม่สามารถเชื่อมต่อ Google Drive ได้'); }
+  });
+
+  window.loadGDriveFileById = async function(fileId){
+    if(!gdriveAccessToken) return;
+    try {
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+        headers: { 'Authorization': 'Bearer ' + gdriveAccessToken }
+      });
+      const raw = await res.json();
+      if(Array.isArray(raw.tasks)){
+        tasks = raw.tasks;
+        tasks.forEach(t => {
+          t.deps = normalizeDeps(t.deps);
+          if(t.hidden === undefined) t.hidden = false;
+        });
+        if(raw.projectName) document.getElementById('projectNameInput').value = raw.projectName;
+        if(Array.isArray(raw.baselineHistory)) baselineHistory = raw.baselineHistory;
+        if(raw.workingCalendar) workingCalendar = raw.workingCalendar;
+        if(raw.timescaleTiers) timescaleTiers = raw.timescaleTiers;
+        nextId = Math.max(...tasks.map(t=>t.id), 0) + 1;
+        render();
+        alert('โหลดแผนงานจาก Google Drive สำเร็จ!');
+        closeGoogleDriveModal();
+      }
+    } catch(e){ alert('ไม่สามารถเปิดไฟล์จาก Google Drive ได้'); }
+  };
+
+  // --- INIT ---
+  loadFromStorage();
+  updateToggleBtnStyles();
+  render();
+})();
+</script>
+</body>
+</html>

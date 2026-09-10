@@ -6,7 +6,7 @@
 <title>Maintenance Project Planner V.12 (Online / Firestore Cloud Sync)</title>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
-  import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
   import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -21,21 +21,42 @@
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getFirestore(app);
+  const googleProvider = new GoogleAuthProvider();
 
-  window.__fbStatus = 'connecting';
+  window.__fbStatus = 'signed-out';
+  window.__fbUser = null;
 
-  const readyUid = new Promise((resolve) => {
-    onAuthStateChanged(auth, (user) => {
-      if(user){
-        window.__fbStatus = 'ready';
-        resolve(user.uid);
-      }
-    });
-    signInAnonymously(auth).catch((err) => {
-      window.__fbStatus = 'error';
-      console.error('Firebase anonymous sign-in failed:', err);
-    });
+  let resolveReadyUid = null;
+  let readyUid = new Promise((resolve) => { resolveReadyUid = resolve; });
+
+  onAuthStateChanged(auth, (user) => {
+    if(user){
+      window.__fbUser = { uid: user.uid, name: user.displayName || user.email, email: user.email, photo: user.photoURL };
+      window.__fbStatus = 'ready';
+      resolveReadyUid(user.uid);
+      if(window.__onAuthReady) window.__onAuthReady(window.__fbUser);
+    } else {
+      window.__fbUser = null;
+      window.__fbStatus = 'signed-out';
+      readyUid = new Promise((resolve) => { resolveReadyUid = resolve; });
+      if(window.__onSignedOut) window.__onSignedOut();
+    }
   });
+
+  window.__fbSignIn = async function(){
+    try {
+      window.__fbStatus = 'connecting';
+      await signInWithPopup(auth, googleProvider);
+    } catch(err){
+      window.__fbStatus = 'error';
+      console.error('Google sign-in failed:', err);
+      if(window.__onAuthError) window.__onAuthError(err);
+    }
+  };
+
+  window.__fbSignOut = function(){
+    return signOut(auth);
+  };
 
   window.__fbSync = async function(payload){
     try {
@@ -160,6 +181,63 @@
   .drawer-item:hover { background: #F0F3F6; color: var(--amber-primary); }
   .drawer-item .icon { margin-right: 10px; font-size: 15px; width: 20px; text-align: center; }
   .drawer-divider { height: 1px; background: #EAECEE; margin: 8px 0; }
+
+  /* Google Sign-In Login Gate */
+  .login-overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: linear-gradient(135deg, #2B303A, #1A1D24); z-index: 500;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+  }
+  .login-overlay.open { opacity: 1; pointer-events: auto; }
+  .login-card {
+    width: 340px; max-width: 90vw; background: #FFF; border-radius: 12px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.4); padding: 32px 28px; text-align: center;
+  }
+  .login-title { font-size: 17px; font-weight: 700; color: var(--text-main); margin-bottom: 6px; }
+  .login-sub { font-size: 12.5px; color: var(--text-muted); margin-bottom: 22px; line-height: 1.5; }
+  .btn-google-signin {
+    width: 100%; padding: 11px; border-radius: 8px; border: 1px solid #DCDFE6; background: #FFF;
+    font-size: 13.5px; font-weight: 600; color: #34495E; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; gap: 8px; transition: all 0.15s;
+  }
+  .btn-google-signin:hover { background: #F4F6F8; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+  .login-status { margin-top: 14px; font-size: 11.5px; color: var(--text-muted); min-height: 16px; }
+  .login-status.error { color: var(--status-problem); }
+
+  /* Left Navigation Rail (icon switcher: Gantt / Dashboard / future views) */
+  .nav-rail {
+    width: 52px; flex-shrink: 0; background: var(--header-bg); display: flex; flex-direction: column;
+    align-items: center; padding: 10px 0; gap: 6px; z-index: 11;
+  }
+  .nav-rail-btn {
+    width: 38px; height: 38px; border-radius: 8px; border: none; background: transparent;
+    color: #9AA5B1; font-size: 18px; cursor: pointer; display: flex; align-items: center;
+    justify-content: center; transition: all 0.15s;
+  }
+  .nav-rail-btn:hover { background: rgba(255,255,255,0.08); color: #FFF; }
+  .nav-rail-btn.active { background: var(--amber-primary); color: #FFF; }
+
+  /* Dashboard Overview View */
+  .dashboard-view { flex: 1; overflow-y: auto; background: #F4F6F8; padding: 20px 24px; }
+  .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  .dash-tile { background: #FFF; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #EAECEE; }
+  .dash-tile .dash-tile-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+  .dash-tile .dash-tile-value { font-size: 26px; font-weight: 700; color: var(--text-main); }
+  .dash-tile .dash-tile-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+  .dash-section { background: #FFF; border-radius: 10px; padding: 18px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #EAECEE; }
+  .dash-section-title { font-size: 13px; font-weight: 700; color: var(--text-main); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  .dash-status-bar { display: flex; height: 26px; border-radius: 6px; overflow: hidden; margin-bottom: 8px; }
+  .dash-status-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 11.5px; color: var(--text-main); }
+  .dash-status-legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .dash-status-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .dash-list { display: flex; flex-direction: column; gap: 8px; }
+  .dash-list-item {
+    display: flex; align-items: center; justify-content: space-between; padding: 8px 10px;
+    background: #F8F9FA; border-radius: 6px; font-size: 12.5px; border: 1px solid #EAECEE;
+  }
+  .dash-list-empty { font-size: 12px; color: var(--text-muted); text-align: center; padding: 14px; }
+  .dash-badge { font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 10px; color: #FFF; white-space: nowrap; }
 
   /* Help / User Manual Left Panel (wider, detailed, scrollable with in-page TOC) */
   .help-overlay {
@@ -486,6 +564,16 @@
 </head>
 <body>
 
+<!-- Google Sign-In Login Gate -->
+<div class="login-overlay open" id="loginOverlay">
+  <div class="login-card">
+    <div class="login-title">🛠️ Maintenance Project Planner</div>
+    <div class="login-sub">เข้าสู่ระบบด้วย Google เพื่อเปิดใช้งานแผนงานและซิงค์ข้อมูลของคุณ</div>
+    <button class="btn-google-signin" id="btnGoogleSignIn"><span>🔑</span> Sign in with Google</button>
+    <div class="login-status" id="loginStatusMsg"></div>
+  </div>
+</div>
+
 <div class="app-container" id="appContainer">
   <!-- Top Header Bar -->
   <header class="app-bar">
@@ -528,8 +616,10 @@
   <div class="drawer-menu" id="drawerMenu">
     <div class="drawer-header">📌 Project Menu</div>
     <ul class="drawer-list">
+      <li class="drawer-item" id="menuUserInfo" style="cursor:default; color:#7F8C8D; font-size:11.5px;"></li>
       <li class="drawer-item" id="menuOpenHelp"><span class="icon">📖</span> คู่มือการใช้งาน (User Manual)</li>
       <li class="drawer-item" id="menuGoogleSync"><span class="icon">☁️</span> โหลดแผนงานจาก Cloud (Firestore)...</li>
+      <li class="drawer-item" id="menuSignOut"><span class="icon">🚪</span> ออกจากระบบ (Sign out)</li>
       <div class="drawer-divider"></div>
       <li class="drawer-item" id="menuAddPlan"><span class="icon">📄</span> Create another plan...</li>
       <li class="drawer-item" id="menuReload"><span class="icon">🔄</span> Reload Data</li>
@@ -748,8 +838,14 @@
 
   <!-- Main Split Layout -->
   <div class="main-split">
+    <!-- Left Navigation Rail: switch between views -->
+    <div class="nav-rail" id="navRail">
+      <button class="nav-rail-btn active" data-view="gantt" title="Gantt Chart">📊</button>
+      <button class="nav-rail-btn" data-view="dashboard" title="Dashboard ภาพรวมโครงการ">📈</button>
+    </div>
+
     <!-- Left Sidebar: Task Tree -->
-    <div class="task-sidebar">
+    <div class="task-sidebar" id="taskSidebar">
       <div class="sidebar-header" id="sidebarHeaderEl">
         <span>Task Name (ลาก ⋮⋮ สลับ/ทำ Sub-task)</span>
         <button class="btn-node-opt" id="btnAddTopTask" style="font-weight:bold; color:var(--amber-primary);" title="เพิ่ม Task ใหม่">+ Task</button>
@@ -765,6 +861,9 @@
       </div>
       <div id="scurveContainer"></div>
     </div>
+
+    <!-- Dashboard Overview View -->
+    <div class="dashboard-view" id="dashboardView" style="display:none;"></div>
   </div>
 </div>
 
@@ -1026,6 +1125,7 @@
   const STORAGE_KEY_V5 = 'ganttPlannerData_v5';
   
   let currentZoom = 'week';
+  let currentView = 'gantt';
   let activeEditingTaskId = null;
   let showCriticalPath = false;
   let showSCurve = false;
@@ -2331,6 +2431,133 @@
       </div>`;
   }
 
+  // --- VIEW SWITCHER (Nav Rail: Gantt / Dashboard / future views) ---
+  function switchView(view){
+    currentView = view;
+    document.querySelectorAll('.nav-rail-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+    document.getElementById('taskSidebar').style.display = view === 'gantt' ? '' : 'none';
+    document.getElementById('timelineWrapper').style.display = view === 'gantt' ? '' : 'none';
+    document.getElementById('dashboardView').style.display = view === 'dashboard' ? '' : 'none';
+    if(view === 'dashboard') renderDashboard();
+  }
+  document.querySelectorAll('.nav-rail-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchView(btn.dataset.view));
+  });
+
+  // --- DASHBOARD OVERVIEW RENDERER ---
+  const DASH_STATUS_ORDER = ['completed', 'inprogress', 'delay', 'problem', 'cancelled', 'none'];
+  const DASH_STATUS_LABEL = {
+    completed: 'เสร็จสิ้น', inprogress: 'กำลังดำเนินการ', delay: 'ล่าช้า',
+    problem: 'มีปัญหา', cancelled: 'ยกเลิก', none: 'ยังไม่เริ่ม'
+  };
+
+  function renderDashboard(){
+    const container = document.getElementById('dashboardView');
+    const realTasks = tasks.filter(t => !t.hidden && t.type !== 'mark' && t.type !== 'highlight' && t.type !== 'milestone' && t.start && t.end);
+    const today = new Date(); today.setHours(0,0,0,0);
+
+    // Overall duration-weighted progress
+    let totalDur = 0, weightedProgress = 0;
+    realTasks.forEach(t => {
+      const dur = countWorkdaysBetween(t.start, t.end);
+      totalDur += dur;
+      weightedProgress += dur * (t.progress || 0);
+    });
+    const overallPct = totalDur > 0 ? Math.round(weightedProgress / totalDur) : 0;
+
+    // Status breakdown
+    const statusCounts = {};
+    DASH_STATUS_ORDER.forEach(s => statusCounts[s] = 0);
+    realTasks.forEach(t => { statusCounts[t.status] = (statusCounts[t.status] || 0) + 1; });
+    const totalTaskCount = realTasks.length || 1;
+    const statusBarHtml = DASH_STATUS_ORDER.filter(s => statusCounts[s] > 0).map(s =>
+      `<div style="width:${(statusCounts[s] / totalTaskCount * 100)}%; background:${getStatusColor(s)};" title="${DASH_STATUS_LABEL[s]}: ${statusCounts[s]}"></div>`
+    ).join('');
+    const statusLegendHtml = DASH_STATUS_ORDER.filter(s => statusCounts[s] > 0).map(s =>
+      `<span><span class="dash-status-dot" style="background:${getStatusColor(s)}"></span>${DASH_STATUS_LABEL[s]} (${statusCounts[s]})</span>`
+    ).join('');
+
+    // Critical path summary
+    const cp = computeCriticalPath();
+
+    // Overdue tasks
+    const overdue = realTasks.filter(t => !['completed', 'cancelled'].includes(t.status) && parseDate(t.end) < today)
+      .sort((a, b) => parseDate(a.end) - parseDate(b.end));
+
+    // Upcoming milestones
+    const upcomingMilestones = tasks.filter(t => !t.hidden && t.type === 'milestone' && t.start && parseDate(t.start) >= today)
+      .sort((a, b) => parseDate(a.start) - parseDate(b.start)).slice(0, 5);
+
+    // Standalone mini S-Curve (independent of Gantt zoom/dayWidth)
+    const bounds = autoTimeBounds();
+    const chartW = 760, chartH = 150, padTop = 10, padBottom = 20, plotH = chartH - padTop - padBottom;
+    const totalDays = Math.max(1, diffDays(bounds.min, bounds.max));
+    let totalWorkdaysSum = 0;
+    realTasks.forEach(t => { totalWorkdaysSum += countWorkdaysBetween(t.start, t.end); });
+    if(totalWorkdaysSum <= 0) totalWorkdaysSum = 1;
+    let plannedPts = [], actualPts = [];
+    for(let i = 0; i <= totalDays; i += Math.max(1, Math.floor(totalDays / 200))){
+      const d = addDays(bounds.min, i);
+      let sumP = 0, sumA = 0;
+      realTasks.forEach(t => {
+        const weight = countWorkdaysBetween(t.start, t.end) / totalWorkdaysSum;
+        sumP += weight * pctAt(d, parseDate(t.targetStart || t.start), parseDate(t.targetEnd || t.end));
+        sumA += weight * pctAt(d, parseDate(t.start), parseDate(t.end));
+      });
+      const x = (i / totalDays) * chartW;
+      plannedPts.push(`${x.toFixed(1)},${(padTop + plotH - (sumP / 100 * plotH)).toFixed(1)}`);
+      actualPts.push(`${x.toFixed(1)},${(padTop + plotH - (sumA / 100 * plotH)).toFixed(1)}`);
+    }
+    const scurveGrid = [0, 25, 50, 75, 100].map(p => {
+      const y = padTop + plotH - (p / 100 * plotH);
+      return `<line x1="0" y1="${y}" x2="${chartW}" y2="${y}" stroke="#E4E9EC" stroke-width="1"/><text x="4" y="${y - 3}" font-size="9" fill="#7F8C8D" font-family="monospace">${p}%</text>`;
+    }).join('');
+
+    const overdueListHtml = overdue.length ? overdue.map(t => {
+      const daysLate = diffDays(parseDate(t.end), today);
+      return `<div class="dash-list-item"><span>${escapeHtml(t.name)}</span><span class="dash-badge" style="background:var(--status-problem)">ช้า ${daysLate} วัน</span></div>`;
+    }).join('') : '<div class="dash-list-empty">ไม่มี Task ที่เลยกำหนด 🎉</div>';
+
+    const milestoneListHtml = upcomingMilestones.length ? upcomingMilestones.map(t => {
+      const daysAway = diffDays(today, parseDate(t.start));
+      return `<div class="dash-list-item"><span>${escapeHtml(t.name)}</span><span class="dash-badge" style="background:var(--status-completed)">อีก ${daysAway} วัน (${t.start})</span></div>`;
+    }).join('') : '<div class="dash-list-empty">ไม่มี Milestone ที่ใกล้ถึง</div>';
+
+    container.innerHTML = `
+      <div class="dash-grid">
+        <div class="dash-tile"><div class="dash-tile-label">ความคืบหน้ารวม</div><div class="dash-tile-value">${overallPct}%</div><div class="dash-tile-sub">Duration-Weighted</div></div>
+        <div class="dash-tile"><div class="dash-tile-label">Task ทั้งหมด</div><div class="dash-tile-value">${realTasks.length}</div><div class="dash-tile-sub">ไม่รวม Mark/Highlight/Milestone</div></div>
+        <div class="dash-tile"><div class="dash-tile-label">Critical Path</div><div class="dash-tile-value">${cp.totalDays}</div><div class="dash-tile-sub">วัน (${cp.criticalCount} งานวิกฤต)</div></div>
+        <div class="dash-tile"><div class="dash-tile-label">เลยกำหนด</div><div class="dash-tile-value" style="color:${overdue.length ? 'var(--status-problem)' : 'var(--status-completed)'}">${overdue.length}</div><div class="dash-tile-sub">Task ที่ค้าง</div></div>
+      </div>
+
+      <div class="dash-section">
+        <div class="dash-section-title">📊 สถานะ Task ทั้งหมด</div>
+        <div class="dash-status-bar">${statusBarHtml}</div>
+        <div class="dash-status-legend">${statusLegendHtml}</div>
+      </div>
+
+      <div class="dash-section">
+        <div class="dash-section-title">📈 S-Curve ภาพรวมทั้งโครงการ</div>
+        <svg width="100%" viewBox="0 0 ${chartW} ${chartH}" preserveAspectRatio="none" style="max-width:100%;">
+          ${scurveGrid}
+          <polyline points="${plannedPts.join(' ')}" fill="none" stroke="#95A5A6" stroke-width="2" stroke-dasharray="5,4"/>
+          <polyline points="${actualPts.join(' ')}" fill="none" stroke="#3498DB" stroke-width="2.5"/>
+        </svg>
+      </div>
+
+      <div class="dash-section">
+        <div class="dash-section-title">⚠️ Task ที่เลยกำหนด (Overdue)</div>
+        <div class="dash-list">${overdueListHtml}</div>
+      </div>
+
+      <div class="dash-section">
+        <div class="dash-section-title">♦️ Milestone ที่ใกล้ถึง</div>
+        <div class="dash-list">${milestoneListHtml}</div>
+      </div>
+    `;
+  }
+
   // --- TIMESCALE MODAL CONTROLLER ---
   function openTimescaleModal(){
     document.getElementById('tsYears').checked = timescaleTiers.years;
@@ -2959,6 +3186,7 @@
   function updateCloudSyncBtnLabel(){
     if(!btnGoogleSyncEl) return;
     const labels = {
+      'signed-out': '🔒 Not signed in',
       connecting: '⏳ Connecting...',
       ready: '☁️ Cloud Sync',
       synced: '☁️ Synced ✓',
@@ -2980,6 +3208,39 @@
 
   btnGoogleSyncEl.addEventListener('click', handleCloudSyncClick);
   document.getElementById('menuGoogleSync').addEventListener('click', () => { closeDrawer(); handleCloudSyncClick(); });
+
+  // --- LOGIN GATE (Google Sign-In) ---
+  const loginOverlayEl = document.getElementById('loginOverlay');
+  const loginStatusMsgEl = document.getElementById('loginStatusMsg');
+  const menuUserInfoEl = document.getElementById('menuUserInfo');
+
+  document.getElementById('btnGoogleSignIn').addEventListener('click', () => {
+    loginStatusMsgEl.textContent = '';
+    loginStatusMsgEl.classList.remove('error');
+    window.__fbSignIn();
+  });
+
+  document.getElementById('menuSignOut').addEventListener('click', () => {
+    closeDrawer();
+    window.__fbSignOut();
+  });
+
+  window.__onAuthReady = async function(user){
+    loginOverlayEl.classList.remove('open');
+    if(menuUserInfoEl) menuUserInfoEl.textContent = `👤 ${user.name || user.email || 'Signed in'}`;
+    const gotCloudData = await loadFromCloud();
+    if(gotCloudData) render();
+  };
+
+  window.__onSignedOut = function(){
+    loginOverlayEl.classList.add('open');
+    if(menuUserInfoEl) menuUserInfoEl.textContent = '';
+  };
+
+  window.__onAuthError = function(err){
+    loginStatusMsgEl.textContent = 'เข้าสู่ระบบไม่สำเร็จ — ลองอีกครั้ง (' + (err && err.code || 'unknown error') + ')';
+    loginStatusMsgEl.classList.add('error');
+  };
 
   // --- INIT ---
   loadFromStorage();

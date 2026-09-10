@@ -371,8 +371,11 @@
   .btn-node-opt:hover { color: var(--text-main); background: #E2E8F0; }
 
   /* Right Timeline Panel */
-  .timeline-wrapper { flex: 1; overflow: auto; background: var(--timeline-bg); position: relative; display: flex; flex-direction: column; }
-  .timeline-header-sticky { position: sticky; top: 0; z-index: 15; background: #F8F9FA; border-bottom: 1px solid var(--sidebar-border); display: flex; flex-direction: column; }
+  .timeline-wrapper { flex: 1; overflow: hidden; background: var(--timeline-bg); position: relative; display: flex; flex-direction: column; }
+  .timeline-header-clip { overflow: hidden; flex-shrink: 0; z-index: 15; }
+  .timeline-header-sticky { width: max-content; background: #F8F9FA; border-bottom: 1px solid var(--sidebar-border); display: flex; flex-direction: column; }
+  .timeline-scroll-body { flex: 1; overflow: auto; position: relative; }
+  .scurve-clip { overflow: hidden; flex-shrink: 0; }
   .timeline-scale-row { display: flex; height: 22px; border-bottom: 1px solid var(--sidebar-border); font-size: 10.5px; font-weight: 700; color: #576574; font-family: var(--font-mono); }
   .scale-cell { border-right: 1px solid var(--sidebar-border); display: flex; align-items: center; justify-content: center; white-space: nowrap; overflow: hidden; }
 
@@ -555,13 +558,13 @@
     margin: 5mm;
   }
   @media print {
-    header.app-bar, .drawer-overlay, .drawer-menu, .help-overlay, .help-panel, .modal-backdrop, .node-actions, .cp-info-banner, .compare-info-banner { display: none !important; }
+    header.app-bar, .drawer-overlay, .drawer-menu, .help-overlay, .help-panel, .modal-backdrop, .node-actions, .cp-info-banner, .compare-info-banner, .login-overlay, .nav-rail { display: none !important; }
     body { background: #FFF !important; color: #000 !important; overflow: visible !important; height: auto !important; width: 100% !important; font-size: 11px !important; }
     .app-container { height: auto !important; width: 100% !important; overflow: visible !important; transform: none !important; }
     .main-split { height: auto !important; overflow: visible !important; display: flex !important; flex-direction: row !important; }
     .task-sidebar { width: 280px !important; min-width: 280px !important; border-right: 1.5px solid #333 !important; font-size: 11px !important; }
     .timeline-wrapper { flex: 1 !important; overflow: visible !important; }
-    .timeline-header-sticky { position: static !important; }
+    .timeline-header-clip, .timeline-scroll-body, .scurve-clip { overflow: visible !important; }
     .gantt-bar { print-color-adjust: exact; -webkit-print-color-adjust: exact; box-shadow: none !important; }
     .gantt-milestone { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
     .grid-bg-column { border-right-color: #E2E8F0 !important; }
@@ -861,11 +864,17 @@
 
     <!-- Right Timeline: Gantt View -->
     <div class="timeline-wrapper" id="timelineWrapper">
-      <div class="timeline-header-sticky" id="timelineHeaderSticky"></div>
-      <div class="timeline-body-area" id="timelineBodyArea">
-        <svg class="dependency-svg-layer" id="dependencySvg"></svg>
+      <div class="timeline-header-clip" id="timelineHeaderClip">
+        <div class="timeline-header-sticky" id="timelineHeaderSticky"></div>
       </div>
-      <div id="scurveContainer"></div>
+      <div class="timeline-scroll-body" id="timelineScrollBody">
+        <div class="timeline-body-area" id="timelineBodyArea">
+          <svg class="dependency-svg-layer" id="dependencySvg"></svg>
+        </div>
+      </div>
+      <div class="scurve-clip" id="scurveClip">
+        <div id="scurveContainer"></div>
+      </div>
     </div>
 
     <!-- Dashboard Overview View -->
@@ -3170,7 +3179,7 @@
   // --- SCROLL SYNC: keep sidebar task rows aligned with gantt bars while scrolling vertically ---
   (function setupScrollSync(){
     const treeEl = document.getElementById('taskTreeContainer');
-    const wrapEl = document.getElementById('timelineWrapper');
+    const wrapEl = document.getElementById('timelineScrollBody');
     let syncing = false;
     treeEl.addEventListener('scroll', () => {
       if(syncing) return;
@@ -3183,6 +3192,18 @@
       syncing = true;
       treeEl.scrollTop = wrapEl.scrollTop;
       syncing = false;
+    });
+  })();
+
+  // --- HORIZONTAL SCROLL SYNC: keep timescale header and S-Curve aligned with the gantt bars ---
+  (function setupHorizontalScrollSync(){
+    const scrollBodyEl = document.getElementById('timelineScrollBody');
+    const headerStickyEl = document.getElementById('timelineHeaderSticky');
+    const scurveContainerEl = document.getElementById('scurveContainer');
+    scrollBodyEl.addEventListener('scroll', () => {
+      const offset = -scrollBodyEl.scrollLeft;
+      headerStickyEl.style.transform = `translateX(${offset}px)`;
+      scurveContainerEl.style.transform = `translateX(${offset}px)`;
     });
   })();
 

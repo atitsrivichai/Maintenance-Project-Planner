@@ -30,6 +30,12 @@
   let readyUid = new Promise((resolve) => { resolveReadyUid = resolve; });
 
   onAuthStateChanged(auth, (user) => {
+    if(user && user.isAnonymous){
+      // Purge stale Anonymous Auth sessions from before the Google Sign-In switch —
+      // an anonymous session must never satisfy the login gate.
+      signOut(auth);
+      return;
+    }
     if(user){
       window.__fbUser = { uid: user.uid, name: user.displayName || user.email, email: user.email, photo: user.photoURL };
       window.__fbStatus = 'ready';

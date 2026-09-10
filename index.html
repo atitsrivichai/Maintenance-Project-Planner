@@ -3,9 +3,57 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Maintenance Project Planner V.11 (Online / Google Drive Sync)</title>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="https://apis.google.com/js/api.js" async defer></script>
+<title>Maintenance Project Planner V.12 (Online / Firestore Cloud Sync)</title>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBedm1KvS0ibLJUZ9YXsTP8_oEfjOvbvVo",
+    authDomain: "maintenance-project-planner-db.firebaseapp.com",
+    projectId: "maintenance-project-planner-db",
+    storageBucket: "maintenance-project-planner-db.firebasestorage.app",
+    messagingSenderId: "558423427049",
+    appId: "1:558423427049:web:a992b2dab2fc7747caed78"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  window.__fbStatus = 'connecting';
+
+  const readyUid = new Promise((resolve) => {
+    onAuthStateChanged(auth, (user) => {
+      if(user){
+        window.__fbStatus = 'ready';
+        resolve(user.uid);
+      }
+    });
+    signInAnonymously(auth).catch((err) => {
+      window.__fbStatus = 'error';
+      console.error('Firebase anonymous sign-in failed:', err);
+    });
+  });
+
+  window.__fbSync = async function(payload){
+    try {
+      const uid = await readyUid;
+      await setDoc(doc(db, 'plans', uid), payload);
+      window.__fbStatus = 'synced';
+    } catch(err){
+      window.__fbStatus = 'error';
+      console.error('Firestore sync failed:', err);
+    }
+  };
+
+  window.__fbLoad = async function(){
+    const uid = await readyUid;
+    const snap = await getDoc(doc(db, 'plans', uid));
+    return snap.exists() ? snap.data() : null;
+  };
+</script>
 <style>
   :root {
     --header-bg: #2B303A;
@@ -470,7 +518,7 @@
       <button class="btn-header" id="btnToggleSCurve" title="เปิด/ปิด แผงกราฟ S-Curve (Duration-Weighted)">📈 S-Curve</button>
       <button class="btn-header" id="btnOpenMH" title="จัดการจุดหมายและแถบไฮไลท์ช่วงเวลา">📍 Marks/Highlights</button>
       <button class="btn-header" id="btnOpenHistory" title="ดูประวัติและเทียบแผน Baseline Snapshots">📸 History</button>
-      <button class="btn-header" id="btnGoogleSync" style="background:#4285F4; color:#FFF; font-weight:700;" title="ซิงค์และบันทึกข้อมูลกับ Google Drive">🔑 Cloud Sync</button>
+      <button class="btn-header" id="btnGoogleSync" style="background:#F57C00; color:#FFF; font-weight:700;" title="โหลดแผนงานล่าสุดจาก Firestore (ข้อมูลจะ sync ขึ้น Cloud อัตโนมัติทุกครั้งที่บันทึก)">☁️ Cloud Sync</button>
       <button class="btn-header primary" id="btnQuickExport">📸 Export A4</button>
     </div>
   </header>
@@ -481,7 +529,7 @@
     <div class="drawer-header">📌 Project Menu</div>
     <ul class="drawer-list">
       <li class="drawer-item" id="menuOpenHelp"><span class="icon">📖</span> คู่มือการใช้งาน (User Manual)</li>
-      <li class="drawer-item" id="menuGoogleSync"><span class="icon">☁️</span> Google Drive Cloud Sync...</li>
+      <li class="drawer-item" id="menuGoogleSync"><span class="icon">☁️</span> โหลดแผนงานจาก Cloud (Firestore)...</li>
       <div class="drawer-divider"></div>
       <li class="drawer-item" id="menuAddPlan"><span class="icon">📄</span> Create another plan...</li>
       <li class="drawer-item" id="menuReload"><span class="icon">🔄</span> Reload Data</li>
@@ -720,47 +768,6 @@
   </div>
 </div>
 
-<!-- Google Drive Cloud Sync Modal Dialog -->
-<div class="modal-backdrop" id="googleDriveModal">
-  <div class="modal-dialog" style="width:540px;">
-    <div class="modal-nav-tabs">
-      <button class="tab-btn active">☁️ Google Drive Cloud Sync (GitHub & Vercel Online)</button>
-    </div>
-    <div class="modal-body">
-      <div style="background:#E8F8F5; border:1px solid #A3E4D7; color:#16A085; padding:10px 12px; border-radius:6px; font-size:12px; margin-bottom:14px; line-height:1.4;">
-        💡 <b>หากต้องการใช้งานแบบ Offline บนเครื่อง (ไม่ต้องซิงค์ Google Drive):</b><br>
-        ไม่ต้อง Sign in ครับ! ให้กดปุ่ม <b>"ปิด"</b> ด้านล่าง แล้วใช้งานได้ทันที ระบบจะ Auto-Save แผนงานลงเครื่อง (LocalStorage) ให้อัตโนมัติ 100%
-      </div>
-
-      <div style="font-size:13px; color:#34495E; margin-bottom:14px; line-height:1.5;">
-        เชื่อมต่อและบันทึกข้อมูลแผนงานโครงการลงบน <b>Google Drive</b> ของคุณเองโดยตรง เพื่อซิงค์และเปิดใช้งานข้ามเครื่องผ่าน Vercel / GitHub ได้ทุกที่:
-      </div>
-      
-      <div class="date-calculation-row" style="margin-bottom:14px; justify-content:space-between; align-items:center; background:#EBF5FB; border-color:#AED6F1;">
-        <div><b>สถานะการล็อกอิน:</b> <span id="gdriveAuthStatus" style="color:#C0392B; font-weight:700;">ยังไม่ได้ล็อกอิน</span></div>
-        <button class="btn-modal primary" id="btnGDriveLogin" style="padding:6px 14px; font-size:12px; background:#4285F4;">🔑 Sign in with Google</button>
-      </div>
-
-      <div class="form-group" style="margin-bottom:14px;">
-        <label class="form-label">Google OAuth Client ID (สำหรับ Web App Host)</label>
-        <input type="text" class="form-input" id="gdriveClientId" placeholder="ป้อน Google OAuth Client ID..." value="">
-        <div style="font-size:11px; color:#7F8C8D; margin-top:4px;">* ใช้สำหรับการล็อกอินเข้าถึง Google Drive API v3 (สิทธิ์จำกัดเฉพาะไฟล์ที่แอปสร้างขึ้นเอง <code>drive.file</code>)</div>
-      </div>
-
-      <div class="modal-section-title">📂 ไฟล์แผนงานโครงการบน Google Drive</div>
-      <div id="gdriveFileList" style="max-height:160px; overflow-y:auto; border:1px solid #E0E4E8; border-radius:6px; padding:10px; font-size:12.5px; background:#FAFAFA;">
-        <div style="color:#7F8C8D; text-align:center; padding:12px;">กดปุ่ม Sign in with Google เพื่อดึงรายการไฟล์</div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-modal ghost" id="btnCloseGDriveModal">ปิด</button>
-      <div style="display:flex; gap:8px;">
-        <button class="btn-modal primary" id="btnSaveToGDrive" style="background:#27AE60;">💾 Save to Google Drive</button>
-        <button class="btn-modal primary" id="btnLoadFromGDrive">📂 Load from Drive</button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- Timescale Settings Modal Dialog -->
 <div class="modal-backdrop" id="timescaleModal">
@@ -1248,15 +1255,48 @@
   }
 
   // --- STORAGE ENGINE ---
+  function buildStoragePayload(){
+    return {
+      projectName: document.getElementById('projectNameInput').value,
+      tasks, baselineHistory, currentZoom, showCriticalPath, showSCurve,
+      viewMode, viewStart, viewEnd, workingCalendar, timescaleTiers
+    };
+  }
+
   function saveToStorage(){
     try {
-      const payload = {
-        projectName: document.getElementById('projectNameInput').value,
-        tasks, baselineHistory, currentZoom, showCriticalPath, showSCurve,
-        viewMode, viewStart, viewEnd, workingCalendar, timescaleTiers
-      };
+      const payload = buildStoragePayload();
       localStorage.setItem(STORAGE_KEY_V6, JSON.stringify(payload));
+      if(window.__fbSync) window.__fbSync(payload);
     } catch(e){}
+  }
+
+  function applyLoadedPayload(payload){
+    if(payload.projectName) document.getElementById('projectNameInput').value = payload.projectName;
+    if(Array.isArray(payload.tasks) && payload.tasks.length){
+      tasks = payload.tasks;
+      tasks.forEach(t => {
+        if(!t.type){
+          if(t.milestone) t.type = 'milestone';
+          else t.type = 'task';
+        }
+        if(t.type === 'milestone' || t.type === 'mark'){
+          t.end = t.start;
+        }
+        t.deps = normalizeDeps(t.deps);
+        if(t.hidden === undefined) t.hidden = false;
+      });
+    }
+    if(Array.isArray(payload.baselineHistory)) baselineHistory = payload.baselineHistory;
+    if(payload.currentZoom) currentZoom = payload.currentZoom;
+    if(payload.showCriticalPath !== undefined) showCriticalPath = payload.showCriticalPath;
+    if(payload.showSCurve !== undefined) showSCurve = payload.showSCurve;
+    if(payload.viewMode){ viewMode = payload.viewMode; viewStart = payload.viewStart; viewEnd = payload.viewEnd; }
+    if(payload.workingCalendar) workingCalendar = payload.workingCalendar;
+    if(payload.timescaleTiers) timescaleTiers = payload.timescaleTiers;
+
+    nextId = Math.max(...tasks.map(t=>t.id), 0) + 1;
+    if(baselineHistory.length) nextHistId = Math.max(...baselineHistory.map(h=>h.id), 0) + 1;
   }
 
   function loadFromStorage(){
@@ -1264,33 +1304,21 @@
       let raw = localStorage.getItem(STORAGE_KEY_V6);
       if(!raw) raw = localStorage.getItem(STORAGE_KEY_V5); // Fallback to V5 data
       if(!raw) return;
-      const payload = JSON.parse(raw);
-      if(payload.projectName) document.getElementById('projectNameInput').value = payload.projectName;
-      if(Array.isArray(payload.tasks) && payload.tasks.length){
-        tasks = payload.tasks;
-        tasks.forEach(t => {
-          if(!t.type){
-            if(t.milestone) t.type = 'milestone';
-            else t.type = 'task';
-          }
-          if(t.type === 'milestone' || t.type === 'mark'){
-            t.end = t.start;
-          }
-          t.deps = normalizeDeps(t.deps);
-          if(t.hidden === undefined) t.hidden = false;
-        });
-      }
-      if(Array.isArray(payload.baselineHistory)) baselineHistory = payload.baselineHistory;
-      if(payload.currentZoom) currentZoom = payload.currentZoom;
-      if(payload.showCriticalPath !== undefined) showCriticalPath = payload.showCriticalPath;
-      if(payload.showSCurve !== undefined) showSCurve = payload.showSCurve;
-      if(payload.viewMode){ viewMode = payload.viewMode; viewStart = payload.viewStart; viewEnd = payload.viewEnd; }
-      if(payload.workingCalendar) workingCalendar = payload.workingCalendar;
-      if(payload.timescaleTiers) timescaleTiers = payload.timescaleTiers;
-
-      nextId = Math.max(...tasks.map(t=>t.id), 0) + 1;
-      if(baselineHistory.length) nextHistId = Math.max(...baselineHistory.map(h=>h.id), 0) + 1;
+      applyLoadedPayload(JSON.parse(raw));
     } catch(e){}
+  }
+
+  async function loadFromCloud(){
+    if(!window.__fbLoad) return false;
+    try {
+      const payload = await window.__fbLoad();
+      if(!payload) return false;
+      applyLoadedPayload(payload);
+      return true;
+    } catch(e){
+      console.error('Load from Firestore failed:', e);
+      return false;
+    }
   }
 
   // --- ROLLUP PROGRESS MATH ---
@@ -2925,128 +2953,33 @@
     });
   })();
 
-  // --- GOOGLE DRIVE CLOUD SYNC MODULE ---
-  const googleDriveModal = document.getElementById('googleDriveModal');
-  let tokenClient = null;
-  let gdriveAccessToken = null;
+  // --- FIRESTORE CLOUD SYNC MODULE ---
+  const btnGoogleSyncEl = document.getElementById('btnGoogleSync');
 
-  function openGoogleDriveModal(){
-    googleDriveModal.classList.add('open');
-    const savedClientId = localStorage.getItem('gdrive_client_id') || '';
-    document.getElementById('gdriveClientId').value = savedClientId;
-  }
-
-  function closeGoogleDriveModal(){
-    googleDriveModal.classList.remove('open');
-  }
-
-  document.getElementById('btnGoogleSync').addEventListener('click', openGoogleDriveModal);
-  document.getElementById('menuGoogleSync').addEventListener('click', () => { closeDrawer(); openGoogleDriveModal(); });
-  document.getElementById('btnCloseGDriveModal').addEventListener('click', closeGoogleDriveModal);
-
-  document.getElementById('btnGDriveLogin').addEventListener('click', () => {
-    const clientId = document.getElementById('gdriveClientId').value.trim();
-    if(!clientId){
-      alert('กรุณาป้อน Google OAuth Client ID ก่อนทำการ Sign in');
-      return;
-    }
-    localStorage.setItem('gdrive_client_id', clientId);
-    if(typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2){
-      alert('ระบบกำลังโหลด Google API Client กรุณาลองใหม่อีกครั้งในอีกสักครู่');
-      return;
-    }
-    tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: clientId,
-      scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.appdata',
-      callback: (tokenResponse) => {
-        if(tokenResponse && tokenResponse.access_token){
-          gdriveAccessToken = tokenResponse.access_token;
-          document.getElementById('gdriveAuthStatus').textContent = 'เชื่อมต่อแล้ว ✓';
-          document.getElementById('gdriveAuthStatus').style.color = '#27AE60';
-          fetchGoogleDriveFiles();
-        }
-      }
-    });
-    tokenClient.requestAccessToken();
-  });
-
-  async function fetchGoogleDriveFiles(){
-    if(!gdriveAccessToken) return;
-    try {
-      const res = await fetch("https://www.googleapis.com/drive/v3/files?q=name%20contains%20'gantt'", {
-        headers: { 'Authorization': 'Bearer ' + gdriveAccessToken }
-      });
-      const data = await res.json();
-      const listEl = document.getElementById('gdriveFileList');
-      if(data.files && data.files.length){
-        listEl.innerHTML = data.files.map(f => `
-          <div style="display:flex; justify-content:space-between; align-items:center; padding:4px 0; border-bottom:1px solid #EEE;">
-            <span>📄 <b>${escapeHtml(f.name)}</b></span>
-            <button class="quick-shift-btn" onclick="window.loadGDriveFileById('${f.id}')">โหลดไฟล์นี้</button>
-          </div>
-        `).join('');
-      } else {
-        listEl.innerHTML = '<div style="color:#7F8C8D; text-align:center; padding:10px;">ยังไม่พบไฟล์แผนงานบน Google Drive</div>';
-      }
-    } catch(err){ console.error(err); }
-  }
-
-  document.getElementById('btnSaveToGDrive').addEventListener('click', async () => {
-    if(!gdriveAccessToken){
-      alert('กรุณาทำ Sign in with Google ก่อนบันทึกไฟล์');
-      return;
-    }
-    const payload = {
-      projectName: document.getElementById('projectNameInput').value,
-      tasks, baselineHistory, currentZoom, showCriticalPath, showSCurve,
-      viewMode, viewStart, viewEnd, workingCalendar, timescaleTiers,
-      savedAt: new Date().toISOString()
+  function updateCloudSyncBtnLabel(){
+    if(!btnGoogleSyncEl) return;
+    const labels = {
+      connecting: '⏳ Connecting...',
+      ready: '☁️ Cloud Sync',
+      synced: '☁️ Synced ✓',
+      error: '⚠️ Sync Error'
     };
-    const fileName = (document.getElementById('projectNameInput').value || 'gantt-plan') + '.json';
-    const metadata = { name: fileName, mimeType: 'application/json' };
-    const form = new FormData();
-    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-    form.append('file', new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
+    btnGoogleSyncEl.textContent = labels[window.__fbStatus] || '☁️ Cloud Sync';
+  }
+  setInterval(updateCloudSyncBtnLabel, 1000);
 
-    try {
-      const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + gdriveAccessToken },
-        body: form
-      });
-      if(res.ok){
-        alert('บันทึกแผนงานลง Google Drive สำเร็จ!');
-        fetchGoogleDriveFiles();
-      } else {
-        alert('เกิดข้อผิดพลาดในการบันทึก Google Drive');
-      }
-    } catch(e){ alert('ไม่สามารถเชื่อมต่อ Google Drive ได้'); }
-  });
+  async function handleCloudSyncClick(){
+    const ok = await loadFromCloud();
+    if(ok){
+      render();
+      alert('โหลดแผนงานล่าสุดจาก Cloud (Firestore) สำเร็จ!');
+    } else {
+      alert('ยังไม่พบข้อมูลบน Cloud หรือเชื่อมต่อไม่สำเร็จ — ข้อมูลจะถูก sync ขึ้น Cloud อัตโนมัติเมื่อคุณบันทึกแผนงานครั้งถัดไป');
+    }
+  }
 
-  window.loadGDriveFileById = async function(fileId){
-    if(!gdriveAccessToken) return;
-    try {
-      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-        headers: { 'Authorization': 'Bearer ' + gdriveAccessToken }
-      });
-      const raw = await res.json();
-      if(Array.isArray(raw.tasks)){
-        tasks = raw.tasks;
-        tasks.forEach(t => {
-          t.deps = normalizeDeps(t.deps);
-          if(t.hidden === undefined) t.hidden = false;
-        });
-        if(raw.projectName) document.getElementById('projectNameInput').value = raw.projectName;
-        if(Array.isArray(raw.baselineHistory)) baselineHistory = raw.baselineHistory;
-        if(raw.workingCalendar) workingCalendar = raw.workingCalendar;
-        if(raw.timescaleTiers) timescaleTiers = raw.timescaleTiers;
-        nextId = Math.max(...tasks.map(t=>t.id), 0) + 1;
-        render();
-        alert('โหลดแผนงานจาก Google Drive สำเร็จ!');
-        closeGoogleDriveModal();
-      }
-    } catch(e){ alert('ไม่สามารถเปิดไฟล์จาก Google Drive ได้'); }
-  };
+  btnGoogleSyncEl.addEventListener('click', handleCloudSyncClick);
+  document.getElementById('menuGoogleSync').addEventListener('click', () => { closeDrawer(); handleCloudSyncClick(); });
 
   // --- INIT ---
   loadFromStorage();

@@ -3,11 +3,13 @@
 ## Project Overview
 Maintenance Project Planner — Gantt chart planner สำหรับงาน maintenance/factory project
 เป็น static single-file app (index.html เดียว รวม HTML+CSS+JS) ไม่มี build step
-เก็บข้อมูลใน browser localStorage เป็นหลัก มี optional Google Drive sync (OAuth)
+เก็บข้อมูลใน browser localStorage เป็นหลัก และ sync ขึ้น Firestore อัตโนมัติผ่าน Firebase Anonymous Auth
+(Project ID: maintenance-project-planner-db) — Firebase JS SDK โหลดผ่าน CDN แบบ ES module ใน index.html
 
 ## Stack & Conventions
 - Vanilla JavaScript (ไม่มี framework, ไม่มี npm/package.json)
 - ไม่มี build tool — แก้ไฟล์ index.html แล้วเปิดตรงในเบราว์เซอร์ได้เลย
+- Firebase MCP server ผูกไว้ที่ .mcp.json (project-level) ใช้ firebase-tools ผ่าน npx
 - Indent: 2 spaces
 - ภาษาที่ใช้ใน UI/comment: ไทยเป็นหลัก
 

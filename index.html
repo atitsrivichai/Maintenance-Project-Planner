@@ -213,7 +213,8 @@
 
   /* Left Navigation Rail (icon switcher: Gantt / Dashboard / future views) */
   .nav-rail {
-    width: 52px; flex-shrink: 0; background: var(--header-bg); display: flex; flex-direction: column;
+    grid-column: 1; grid-row: 1;
+    background: var(--header-bg); display: flex; flex-direction: column;
     align-items: center; padding: 10px 0; gap: 6px; z-index: 11;
   }
   .nav-rail-btn {
@@ -225,7 +226,7 @@
   .nav-rail-btn.active { background: var(--amber-primary); color: #FFF; }
 
   /* Dashboard Overview View */
-  .dashboard-view { flex: 1; overflow-y: auto; background: #F4F6F8; padding: 20px 24px; }
+  .dashboard-view { grid-column: 2 / 4; grid-row: 1 / 3; overflow-y: auto; background: #F4F6F8; padding: 20px 24px; }
   .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 20px; }
   .dash-tile { background: #FFF; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #EAECEE; }
   .dash-tile .dash-tile-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
@@ -313,13 +314,17 @@
   .btn-icon-help:hover { background: rgba(255,255,255,0.25); }
 
   /* Main Split View */
-  .main-split { display: flex; flex: 1; overflow: hidden; position: relative; }
+  .main-split {
+    display: grid; grid-template-columns: 52px 390px 1fr; grid-template-rows: 1fr auto;
+    flex: 1; overflow: hidden; position: relative;
+  }
 
   /* Left Task Panel */
   .task-sidebar {
-    width: 390px; min-width: 250px; max-width: 600px; background: var(--sidebar-bg);
+    grid-column: 2; grid-row: 1;
+    background: var(--sidebar-bg);
     border-right: 1px solid var(--sidebar-border); display: flex; flex-direction: column;
-    flex-shrink: 0; z-index: 10; position: relative;
+    z-index: 10; position: relative; overflow: hidden;
   }
   .sidebar-header {
     height: 42px; background: #EEF2F5; border-bottom: 1px solid var(--sidebar-border);
@@ -371,11 +376,15 @@
   .btn-node-opt:hover { color: var(--text-main); background: #E2E8F0; }
 
   /* Right Timeline Panel */
-  .timeline-wrapper { flex: 1; overflow: hidden; background: var(--timeline-bg); position: relative; display: flex; flex-direction: column; }
+  .timeline-wrapper {
+    grid-column: 3; grid-row: 1;
+    overflow: hidden; background: var(--timeline-bg); position: relative; display: flex; flex-direction: column;
+  }
   .timeline-header-clip { overflow: hidden; flex-shrink: 0; z-index: 15; }
   .timeline-header-sticky { width: max-content; background: #F8F9FA; border-bottom: 1px solid var(--sidebar-border); display: flex; flex-direction: column; }
   .timeline-scroll-body { flex: 1; overflow: auto; position: relative; }
-  .scurve-clip { overflow: hidden; flex-shrink: 0; }
+  .scurve-row-spacer { grid-column: 1 / 3; grid-row: 2; }
+  .scurve-clip { grid-column: 3; grid-row: 2; overflow: hidden; }
   .timeline-scale-row { display: flex; height: 22px; border-bottom: 1px solid var(--sidebar-border); font-size: 10.5px; font-weight: 700; color: #576574; font-family: var(--font-mono); }
   .scale-cell { border-right: 1px solid var(--sidebar-border); display: flex; align-items: center; justify-content: center; white-space: nowrap; overflow: hidden; }
 
@@ -561,10 +570,12 @@
     header.app-bar, .drawer-overlay, .drawer-menu, .help-overlay, .help-panel, .modal-backdrop, .node-actions, .cp-info-banner, .compare-info-banner, .login-overlay, .nav-rail { display: none !important; }
     body { background: #FFF !important; color: #000 !important; overflow: visible !important; height: auto !important; width: 100% !important; font-size: 11px !important; }
     .app-container { height: auto !important; width: 100% !important; overflow: visible !important; transform: none !important; }
-    .main-split { height: auto !important; overflow: visible !important; display: flex !important; flex-direction: row !important; }
-    .task-sidebar { width: 280px !important; min-width: 280px !important; border-right: 1.5px solid #333 !important; font-size: 11px !important; }
+    .main-split { height: auto !important; overflow: visible !important; display: flex !important; flex-direction: row !important; flex-wrap: wrap !important; }
+    .task-sidebar { width: 280px !important; border-right: 1.5px solid #333 !important; font-size: 11px !important; }
     .timeline-wrapper { flex: 1 !important; overflow: visible !important; }
-    .timeline-header-clip, .timeline-scroll-body, .scurve-clip { overflow: visible !important; }
+    .timeline-header-clip, .timeline-scroll-body { overflow: visible !important; }
+    .scurve-row-spacer { display: none !important; }
+    .scurve-clip { flex-basis: 100% !important; width: 100% !important; overflow: visible !important; }
     .gantt-bar { print-color-adjust: exact; -webkit-print-color-adjust: exact; box-shadow: none !important; }
     .gantt-milestone { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
     .grid-bg-column { border-right-color: #E2E8F0 !important; }
@@ -872,9 +883,13 @@
           <svg class="dependency-svg-layer" id="dependencySvg"></svg>
         </div>
       </div>
-      <div class="scurve-clip" id="scurveClip">
-        <div id="scurveContainer"></div>
-      </div>
+    </div>
+
+    <!-- S-Curve footer row: spans both nav-rail+sidebar (blank) and timeline-wrapper (real panel), so it
+         eats vertical space from the WHOLE top grid row equally instead of shrinking only the gantt side -->
+    <div class="scurve-row-spacer" id="scurveRowSpacer"></div>
+    <div class="scurve-clip" id="scurveClip">
+      <div id="scurveContainer"></div>
     </div>
 
     <!-- Dashboard Overview View -->
@@ -2452,6 +2467,8 @@
     document.querySelectorAll('.nav-rail-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
     document.getElementById('taskSidebar').style.display = view === 'gantt' ? '' : 'none';
     document.getElementById('timelineWrapper').style.display = view === 'gantt' ? '' : 'none';
+    document.getElementById('scurveRowSpacer').style.display = view === 'gantt' ? '' : 'none';
+    document.getElementById('scurveClip').style.display = view === 'gantt' ? '' : 'none';
     document.getElementById('dashboardView').style.display = view === 'dashboard' ? '' : 'none';
     if(view === 'dashboard') renderDashboard();
   }

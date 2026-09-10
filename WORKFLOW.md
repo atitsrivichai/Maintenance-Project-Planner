@@ -1,0 +1,164 @@
+# WORKFLOW — ลำดับการทำงานของ Maintenance Project Planner
+
+เอกสารนี้อธิบาย **ลำดับขั้นตอนการทำงาน** ของแอป ทั้งฝั่งผู้ใช้ (user flow) และเบื้องหลังระบบ (data/sync flow)
+เป็นเอกสารคู่กับ [`SPEC.md`](./SPEC.md) ที่เป็นข้อมูลอ้างอิงโครงสร้าง/ฟีเจอร์/data model แบบแยกหมวด — ถ้า
+SPEC.md บอกว่า "มีอะไรบ้าง" เอกสารนี้จะบอกว่า **"มันทำงานเป็นลำดับขั้นตอนอย่างไร"**
+
+## 1. Boot / Startup Flow (ลำดับตอนเปิดเว็บ)
+
+1. เบราว์เซอร์โหลด `index.html` → บล็อก `<script type="module">` ใน `<head>` รัน `initializeApp()`,
+   `getAuth()`, `getFirestore()` ของ Firebase ก่อนเป็นอันดับแรก
+2. สคริปต์หลักท้ายไฟล์รัน (ดูส่วน `// --- INIT ---`):
+   ```
+   loadFromStorage();       // อ่าน localStorage (v6, fallback v5) → applyLoadedPayload()
+   updateToggleBtnStyles(); // sync สถานะปุ่ม CP/S-Curve ให้ตรงกับข้อมูลที่โหลดมา
+   render();                // วาดหน้าจอครั้งแรกจากข้อมูล local ทันที ไม่ต้องรอ auth
+   ```
+3. `.login-overlay` เปิดค้างไว้เป็นค่าเริ่มต้น (class `open`) — ผู้ใช้เห็นข้อมูล local แว้บหนึ่งใต้ overlay
+   แต่ยังใช้งานจริงไม่ได้จนกว่าจะ sign-in
+4. ขนานกันไป Firebase `onAuthStateChanged` ทำงานเมื่อรู้ผล auth state:
+   - ถ้าเจอ session แบบ **anonymous** ตกค้าง (จากเวอร์ชันเก่าก่อนสลับมาใช้ Google Sign-In) → สั่ง `signOut()`
+     ทันที แล้ว state จะกลับไปที่ "signed-out" ต่อ (กัน user บายพาสด่าน login โดยไม่ตั้งใจ)
+   - ถ้ายังไม่ล็อกอิน → คง overlay ไว้ รอผู้ใช้กดปุ่ม Sign in
+   - ถ้าล็อกอินสำเร็จ → เรียก `window.__onAuthReady(user)` (รายละเอียดข้อ 3)
+5. เมื่อ auth ready และดึงข้อมูล cloud มา apply เสร็จ แอปพร้อมใช้งานเต็มรูปแบบ
+
+## 2. Authentication Flow
+
+**Sign-in**
+```
+ผู้ใช้กด "Sign in with Google"
+  → window.__fbSignIn()  (status = 'connecting')
+  → เปิด Google Sign-In popup
+  → สำเร็จ → Firebase trigger onAuthStateChanged
+      → window.__onAuthReady(user)
+          → ปิด .login-overlay (ลบ class 'open')
+          → แสดงชื่อ/อีเมลผู้ใช้ในเมนู drawer
+          → await loadFromCloud()   ← ดึงข้อมูลจาก Firestore มาทับ state
+          → ถ้าได้ข้อมูลจาก cloud จริง → render() ใหม่อีกครั้ง
+```
+**ล้มเหลว**: popup ปิดเอง/provider error → `window.__onAuthError(err)` → แสดงข้อความ error ใต้ปุ่ม sign-in
+พร้อม error code จาก Firebase
+
+**Sign-out**: กดเมนู "Sign out" ใน drawer → `window.__fbSignOut()` → `onAuthStateChanged` trigger →
+`window.__onSignedOut()` → เปิด `.login-overlay` กลับมา, เคลียร์ข้อความชื่อผู้ใช้
+
+## 3. Core Edit Loop — วงจรหลักที่ทุกฟีเจอร์ใช้ร่วมกัน
+
+ไม่ว่าผู้ใช้จะทำ action อะไร (เพิ่ม/ลบ/ลาก/แก้ task, toggle Critical Path หรือ S-Curve, เปลี่ยน zoom, เพิ่ม
+dependency ฯลฯ) ทุกอย่างจะไหลผ่านวงจรเดียวกันนี้เสมอ:
+
+```
+ผู้ใช้ทำ action
+  → แก้ state ใน array `tasks` (หรือ state อื่น เช่น showCriticalPath, currentZoom) แบบ in-memory ตรงๆ
+  → เรียก render()
+      1. applyRollups()     — คำนวณ progress ของ parent ที่ตั้งเป็น auto ใหม่จากค่าเฉลี่ยลูก
+      2. renderTaskTree()   — วาด task list ฝั่งซ้ายใหม่ทั้งหมด (พร้อมผูก drag/drop ใหม่)
+      3. renderTimeline()   — วาด Gantt ใหม่ทั้งหมด: หัวตารางวันที่, แท่งงาน/milestone/mark/highlight,
+                              เส้น dependency, คำนวณ Critical Path ถ้าเปิดอยู่ (computeCriticalPath()),
+                              แล้วเรียก renderSCurve() ต่อท้ายถ้า S-Curve เปิดอยู่
+      4. syncRangeInputs()  — sync ช่อง input วันที่บน header ให้ตรงกับช่วงที่แสดงจริง
+      5. saveToStorage()    — เขียนลง localStorage ทันที + ยิง window.__fbSync() ไป Firestore
+                              แบบ fire-and-forget (ไม่รอผลลัพธ์)
+```
+
+**ข้อสังเกตสำคัญ**: แอปนี้ **ไม่มีปุ่ม "บันทึก" แยกต่างหาก** — ทุกการเปลี่ยนแปลงจะถูกบันทึกอัตโนมัติทันทีที่
+`render()` ถูกเรียก (ยกเว้น modal แก้ไข task ที่มีปุ่ม Save/Cancel ของตัวเอง เพื่อให้แก้ไขหลายฟิลด์พร้อมกันก่อน
+ค่อย commit เข้า flow นี้ทีเดียว — ถ้ากด Cancel จะคืนค่าจาก backup ที่เก็บไว้ตอนเปิด modal แทน)
+
+## 4. User Flow ของฟีเจอร์หลัก
+
+### เพิ่ม / แก้ไข Task
+1. กด `+Task` (เพิ่ม task หลัก) หรือ `+Sub` ที่แถวใดแถวหนึ่ง (เพิ่ม sub-task)
+2. Modal แก้ไข task เปิดขึ้น พร้อมสำรอง state เดิมไว้ (`modalTaskBackup`) เผื่อกด Cancel
+3. พิมพ์แก้ไขฟิลด์ต่างๆ — `liveSyncModalChanges` จะ push ค่าที่แก้เข้า `tasks` แบบสดๆ ทันทีเพื่อพรีวิว Gantt
+   ระหว่างพิมพ์ (ยังไม่ save ถาวรจนกว่าจะปิด modal)
+4. กด Save → ปิด modal, คงค่าที่แก้ไว้ → เข้าสู่ Core Edit Loop (ข้อ 3)
+   กด Cancel → คืนค่าจาก backup → เข้าสู่ Core Edit Loop เช่นกัน (เพื่อ re-render ให้ตรงกับค่าที่คืนแล้ว)
+
+### สร้าง Dependency (เส้นเชื่อมงานก่อน-หลัง)
+1. ลากจากจุดจับวงกลมที่ขอบแท่งงาน (Start หรือ Finish) ไปปล่อยที่จุดจับของแท่งงานเป้าหมาย
+2. ระบบตรวจสอบว่าจะเกิด cycle หรือไม่ด้วย `wouldCreateCycle()` — ถ้าจะเกิดวนลูป จะไม่สร้างเส้นเชื่อมให้
+3. ถ้าผ่าน → ระบบตัดสินชนิด lag (FS/SS/FF/SF) จากขอบที่ใช้ลาก (`resolveDepType`) → เพิ่มเข้า array `deps` ของ
+   task เป้าหมาย → เข้าสู่ Core Edit Loop
+4. (ทางเลือก) พิมพ์ dependency เป็นข้อความในฟอร์มแก้ไข task โดยตรง เช่น `3FS, 5SS` → ผ่าน `parseDepsInput`
+
+### เปิด/ปิด Critical Path (CPM)
+1. กดปุ่ม CP บน header → สลับ `showCriticalPath` → `updateToggleBtnStyles()` → `renderTimeline()`
+2. `renderTimeline()` เรียก `computeCriticalPath()` ซึ่งทำ forward pass + backward pass หา Total Float ของทุก
+   task แล้วไฮไลต์ path ที่ TF ≤ 0 เป็นสีแดง พร้อมอัปเดตแบนเนอร์สรุปด้านบน (ระยะเวลารวม + จำนวน critical task)
+
+### เปิด/ปิด S-Curve
+1. กดปุ่ม S-Curve บน header → สลับ `showSCurve` → `renderTimeline()`
+2. โครงสร้าง `.main-split` เป็น CSS Grid 2 แถว — แถวล่าง (S-Curve) โผล่ขึ้นมาแล้วทำให้แถวบนหด/ขยายความสูงเท่ากัน
+   ทุกคอลัมน์ (nav-rail/sidebar/timeline) เพื่อไม่ให้ scroll sync ระหว่าง task list กับ Gantt เพี้ยน
+3. `renderSCurve()` วาดกราฟ planned vs actual แบบถ่วงน้ำหนักตามระยะเวลา (duration-weighted)
+
+### ดู Dashboard
+1. กด ไอคอน 📈 บน nav rail → `switchView('dashboard')`
+2. ซ่อน panel ที่เกี่ยวกับ Gantt (`taskSidebar`, `timelineWrapper`, `scurveRowSpacer`, `scurveClip`) โชว์
+   `#dashboardView` แทน
+3. `renderDashboard()` คำนวณสรุปใหม่ทั้งหมด: % ความคืบหน้ารวม, สรุป Critical Path, task เกินกำหนด, milestone
+   ที่ใกล้ถึง, กราฟสถานะ, mini S-Curve — ใช้ helper ชุดเดียวกับ Gantt (`pctAt`, `computeCriticalPath`,
+   `autoTimeBounds`) ไม่มีการคำนวณซ้ำแยกชุด
+
+### Baseline History (บันทึก/เปรียบเทียบแผน)
+1. เปิด modal Baseline History → กด "Save Baseline Version" → `captureBaselineSnapshot(label)` เก็บวันที่
+   ปัจจุบันของทุก task เป็น `targetStart/targetEnd` snapshot ใหม่
+2. กด "Compare" ที่ snapshot ใดๆ → overlay แท่งสีม่วงแสดงแผนเดิมทับ Gantt ปัจจุบัน
+3. กด "Restore" → เขียนวันที่จาก snapshot กลับเข้า `tasks` จริง → เข้าสู่ Core Edit Loop
+4. กด "Delete" → ลบ snapshot ออกจาก `baselineHistory`
+
+### Import / Export
+- **Export JSON/CSV**: ดาวน์โหลดไฟล์ทันทีที่ browser ฝั่งเดียว ไม่เกี่ยวกับ cloud sync
+- **Import JSON**: เลือกไฟล์ผ่าน `#fileImportInput` → เขียนทับ `tasks`/`baselineHistory`/`workingCalendar`/
+  `timescaleTiers` ทั้งหมด → คำนวณ `nextId` ใหม่ → เข้าสู่ Core Edit Loop
+- **Print / Export A4**: กดปุ่มใดก็ตามในกลุ่มนี้ → `triggerA4Print()` → `window.print()` → เบราว์เซอร์ใช้ CSS
+  `@media print` ซ่อน header/drawer/modal/nav-rail แล้วจัด layout เป็น A4 แนวนอน
+
+### Cloud Sync (ปุ่มแบบ manual)
+1. กดปุ่ม Cloud Sync บน header → `handleCloudSyncClick()` → `loadFromCloud()` ดึงข้อมูลล่าสุดจาก Firestore
+   มา apply ทับของ local
+2. Label ปุ่มเปลี่ยนตามสถานะ `window.__fbStatus` ที่ตรวจสอบทุก 1 วินาที (ยังไม่ล็อกอิน/กำลังเชื่อมต่อ/
+   Synced/Sync Error)
+
+## 5. Sync Flow ข้ามอุปกรณ์/เซสชัน
+
+```
+อุปกรณ์ A แก้ไขข้อมูล
+   → saveToStorage() ทุกครั้งที่ render()
+   → window.__fbSync(payload) เขียนทับเอกสาร Firestore: plans/{uid}
+
+อุปกรณ์ B (uid เดียวกัน, sign-in ด้วย Google account เดียวกัน)
+   → ต้อง sign-in ใหม่ (จะ auto loadFromCloud ทันทีตอน __onAuthReady)
+     หรือกดปุ่ม Cloud Sync ด้วยตนเอง (handleCloudSyncClick)
+   → loadFromCloud() → applyLoadedPayload() → เห็นข้อมูลล่าสุดจากอุปกรณ์ A
+```
+
+**ข้อควรทราบ**: แอปนี้ **ไม่มี real-time listener** (ไม่ได้ใช้ Firestore `onSnapshot`) — การ sync เป็นแบบ
+"push เมื่อแก้, pull เมื่อ sign-in หรือกด Cloud Sync เอง" เท่านั้น ดังนั้นถ้าเปิดแอปพร้อมกัน 2 แท็บ/2 เครื่อง
+ด้วย account เดียวกัน **จะไม่เห็นการแก้ไขของอีกฝั่งแบบ real-time** ต้อง refresh หรือกด Cloud Sync เองถึงจะเห็น
+ข้อมูลล่าสุด — เป็นข้อจำกัดที่ควรรู้ก่อนใช้งานพร้อมกันหลายคน/หลายเครื่อง
+
+## 6. แผนภาพสรุป
+
+```mermaid
+flowchart TD
+    A[เปิด index.html] --> B[Firebase init]
+    B --> C[loadFromStorage + render ครั้งแรก]
+    C --> D{Auth state?}
+    D -->|Anonymous ค้าง| E[Sign out อัตโนมัติ]
+    E --> D
+    D -->|ยังไม่ login| F[.login-overlay เปิดค้าง]
+    F -->|กด Sign in with Google| G[signInWithPopup]
+    G --> D
+    D -->|Login สำเร็จ| H[__onAuthReady: ปิด overlay + loadFromCloud]
+    H --> I[render ใหม่ด้วยข้อมูล cloud]
+    I --> J[Core Edit Loop]
+    J -->|ผู้ใช้ทำ action ใดๆ| K[แก้ state ใน tasks/flags]
+    K --> L[render: applyRollups → renderTaskTree → renderTimeline → syncRangeInputs → saveToStorage]
+    L --> M[localStorage เขียนทันที]
+    L --> N[Firestore plans/uid เขียนแบบ fire-and-forget]
+    L --> J
+    N -.->|อุปกรณ์อื่น sign-in หรือกด Cloud Sync| O[loadFromCloud ดึงข้อมูลล่าสุด]
+```

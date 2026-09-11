@@ -409,12 +409,14 @@
   }
   .sidebar-header {
     height: 42px; background: var(--dt-surface-base); border-bottom: 1px solid var(--dt-border-subtle);
-    display: flex; align-items: center; padding: 0 6px 0 12px;
+    display: flex; align-items: center; padding: 0 6px; position: relative;
     font-size: 11px; font-weight: 700; color: var(--dt-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;
   }
   .sidebar-header-cols { display: flex; align-items: center; flex: 1; min-width: 0; gap: 0; }
   .col-label { font-size: 9.5px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .col-label.col-name { flex: 1; min-width: 0; padding-left: 76px; }
+  .col-end-spacer, .node-end-spacer { width: 52px; flex-shrink: 0; }
+  #btnAddTopTask { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); }
   .task-tree-container { flex: 1; overflow-y: auto; overflow-x: hidden; }
 
   .task-node {
@@ -1013,9 +1015,10 @@
           <span class="col-label col-name" title="Task Name (ลาก ⋮⋮ สลับ/ทำ Sub-task)">TASK NAME</span>
           <span class="col-label" style="width:32px; margin-right:8px; text-align:right;">Dur</span>
           <span class="col-label" style="width:32px; margin-right:8px; text-align:right;">%</span>
-          <span class="col-label" style="width:40px; text-align:right;">Dep</span>
+          <span class="col-label" style="width:40px; text-align:right;" title="Dep">Dep</span>
+          <span class="col-end-spacer"></span>
         </div>
-        <button class="btn-node-opt" id="btnAddTopTask" style="font-weight:bold; color:var(--amber-primary); flex-shrink:0; margin-left:10px;" title="เพิ่ม Task ใหม่">+ Task</button>
+        <button class="btn-node-opt" id="btnAddTopTask" style="font-weight:bold; color:var(--amber-primary);" title="เพิ่ม Task ใหม่">+ Task</button>
       </div>
       <div class="task-tree-container" id="taskTreeContainer"></div>
     </div>
@@ -1867,6 +1870,7 @@
         <span class="node-dur" title="ระยะเวลา (วันทำงาน)">${durText}</span>
         <span class="node-pct" title="% ความคืบหน้า">${pctText}</span>
         <span class="node-dep" title="Predecessor (WBS+ชนิด)">${depText}</span>
+        <span class="node-end-spacer"></span>
         <div class="node-actions">
           ${canIndent ? `<button class="btn-node-opt btn-indent" data-id="${t.id}" title="ทำเป็น Sub-task (Indent)">⇥</button>` : ''}
           ${canOutdent ? `<button class="btn-node-opt btn-outdent" data-id="${t.id}" title="ยกเลิกเป็น Main-task (Outdent)">⇤</button>` : ''}

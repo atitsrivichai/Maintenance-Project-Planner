@@ -329,8 +329,9 @@
   .dash-tile-sub.underline-red { border-bottom-color: var(--dt-critical-path); }
   .dash-tile-sub.underline-green { border-bottom-color: var(--dt-scurve-actual); }
   .dash-tile-icon {
-    width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    font-size: 12px; flex-shrink: 0;
+    position: absolute; top: -8px; right: -8px; width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0;
+    border: 3px solid var(--dt-surface-panel);
   }
   .dash-tile-icon.red { background: var(--dt-critical-path); color: #fff; }
   .dash-tile-icon.green { background: var(--dt-scurve-actual); color: #04281D; }
@@ -356,7 +357,9 @@
   .dash-list { display: flex; flex-direction: column; gap: 8px; }
   .dash-list-empty { font-size: 12px; color: var(--dt-text-muted); text-align: center; padding: 14px; font-family: var(--font-sans); }
   .dash-two-col { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; align-items: start; }
-  .baseline-two-col { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; align-items: start; }
+  .baseline-two-col { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; align-items: stretch; }
+  .baseline-two-col > .dash-section { display: flex; flex-direction: column; }
+  .baseline-two-col > .dash-section .dash-list { flex: 1; overflow-y: auto; min-height: 0; }
   @media (max-width: 900px) { .baseline-two-col { grid-template-columns: 1fr; } }
   .dash-risk-item {
     padding: 10px 12px; margin-bottom: 8px; background: var(--dt-surface-base);
@@ -3685,12 +3688,17 @@
     let overlayLegendHtml = '';
     let overlayHasRows = false;
     if(officialBaseline){
-      const allCompare = tasks.filter(t => !t.hidden && t.type !== 'mark' && t.type !== 'highlight' && t.start && t.end && officialBaseline.snapshot[t.id]);
+      const hasDiff = t => {
+        const snap = officialBaseline.snapshot[t.id];
+        return snap.targetStart !== t.start || snap.targetEnd !== t.end;
+      };
+      const allCompare = tasks.filter(t => !t.hidden && t.type !== 'mark' && t.type !== 'highlight' && t.start && t.end && officialBaseline.snapshot[t.id] && hasDiff(t));
       const regularTasks = allCompare.filter(t => t.type !== 'milestone')
         .sort((a, b) => (cp.criticalIds.has(b.id) ? 1 : 0) - (cp.criticalIds.has(a.id) ? 1 : 0))
         .slice(0, 8);
       const milestoneTasks = allCompare.filter(t => t.type === 'milestone').slice(0, 3);
       const compareTasks = regularTasks.concat(milestoneTasks);
+      overlayHtml = '<div class="dash-list-empty">ไม่พบ Task ที่มีความต่างจาก Baseline (ตารางงานตรงตามแผนเดิมทั้งหมด)</div>';
       if(compareTasks.length){
         overlayHasRows = true;
         let minD = null, maxD = null;

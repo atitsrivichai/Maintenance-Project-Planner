@@ -399,17 +399,33 @@
     display: grid; grid-template-columns: 1.4fr 1fr 1fr 0.8fr 1.6fr; gap: 10px; padding: 0 10px 6px;
     font-size: 10px; font-weight: 700; color: var(--dt-text-muted); text-transform: uppercase;
   }
-  .vault-state-badge { font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; cursor: pointer; border: none; }
-  .vault-state-badge.active { background: var(--dt-scurve-actual); color: #04281D; }
+  .vault-state-badge { font-size: 9.5px; font-weight: 700; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; cursor: pointer; border: none; letter-spacing: 0.3px; }
+  .vault-state-badge.active { background: var(--dt-baseline-purple); color: #fff; }
   .vault-state-badge.standby { background: var(--dt-surface-hover); color: var(--dt-text-secondary); }
   .vault-state-badge.archived { background: var(--dt-border-subtle); color: var(--dt-text-muted); }
-  .overlay-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 11.5px; }
+
+  .overlay-row-head {
+    display: grid; grid-template-columns: 1.7fr 0.5fr 3fr; gap: 10px; padding: 0 0 6px;
+    font-size: 10px; font-weight: 700; color: var(--dt-text-muted); text-transform: uppercase;
+  }
+  .overlay-row { display: grid; grid-template-columns: 1.7fr 0.5fr 3fr; gap: 10px; align-items: center; margin-bottom: 9px; font-size: 11.5px; }
   .overlay-row:last-child { margin-bottom: 0; }
-  .overlay-row-label { flex: 0 0 160px; color: var(--dt-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .overlay-row-track { flex: 1; position: relative; height: 20px; background: var(--dt-surface-base); border-radius: 4px; }
-  .overlay-row-bar { position: absolute; height: 7px; border-radius: 3px; }
-  .overlay-row-bar.current { top: 2px; background: var(--dt-scurve-planned); }
-  .overlay-row-bar.baseline { bottom: 2px; background: var(--dt-baseline-purple); }
+  .overlay-row-label { color: var(--dt-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .overlay-row-label.critical { color: var(--dt-critical-path); font-weight: 600; }
+  .overlay-row-dur { color: var(--dt-text-muted); font-family: var(--font-mono); font-size: 10.5px; }
+  .overlay-row-track { position: relative; height: 22px; background: var(--dt-surface-base); border-radius: 4px; }
+  .overlay-row-bar { position: absolute; border-radius: 3px; box-sizing: border-box; }
+  .overlay-row-bar.baseline { top: 2px; bottom: 2px; background: transparent; border: 1.5px dashed var(--dt-baseline-purple); z-index: 1; }
+  .overlay-row-bar.current { top: 6px; height: 10px; background: var(--dt-scurve-planned); z-index: 2; }
+  .overlay-row-bar.current.critical { background: var(--dt-critical-path); }
+  .overlay-slip-label {
+    position: absolute; top: 3px; font-size: 9px; font-weight: 700; color: var(--dt-critical-path);
+    background: var(--dt-critical-path-bg); padding: 1px 4px; border-radius: 3px; white-space: nowrap; z-index: 3;
+  }
+  .overlay-milestone-diamond {
+    position: absolute; top: 50%; width: 11px; height: 11px; background: var(--dt-warning-amber);
+    transform: translate(-50%, -50%) rotate(45deg); border-radius: 2px; z-index: 2;
+  }
 
   /* Help / User Manual Left Panel (wider, detailed, scrollable with in-page TOC) */
   .help-overlay {
@@ -3626,24 +3642,21 @@
     }
 
     // Baseline Version Vault
+    const stateCycle = { active: 'standby', standby: 'archived', archived: 'active' };
     const vaultRowsHtml = baselineHistory.length ? baselineHistory.map((h, idx) => {
       const isComparing = compareVersionId === h.id;
       const isOfficial = systemConfig.officialBaselineId === h.id;
       const state = h.state || 'standby';
       return `
         <div class="vault-row">
-          <div><b>Rev ${idx}${isOfficial ? ' • ACTIVE REF' : ''}</b> — ${escapeHtml(h.label)}</div>
+          <div>🕓 <b>Rev ${idx}${isOfficial ? ' • ACTIVE REF' : ''}</b> — ${escapeHtml(h.label)}</div>
           <div>${new Date(h.savedAt).toLocaleString('th-TH')}</div>
           <div>${escapeHtml(h.author || 'Unknown')}</div>
           <div>
-            <select class="vault-state-select" data-id="${h.id}" style="background:transparent; border:none; color:inherit; font-size:11px;">
-              <option value="active" ${state==='active'?'selected':''}>Active</option>
-              <option value="standby" ${state==='standby'?'selected':''}>Standby</option>
-              <option value="archived" ${state==='archived'?'selected':''}>Archived</option>
-            </select>
+            <button type="button" class="vault-state-badge ${state}" data-id="${h.id}" data-next="${stateCycle[state]}" title="คลิกเพื่อเปลี่ยนสถานะ">${isComparing ? 'ACTIVE COMPARISON' : state}</button>
           </div>
           <div style="display:flex; gap:6px; justify-content:flex-end;">
-            <button class="btn-modal ghost vault-compare" data-id="${h.id}" style="padding:3px 8px; font-size:11px; ${isComparing?'background:rgba(37,99,235,0.15); color:#38BDF8; font-weight:bold;':''}">👁 ${isComparing ? 'กำลังเทียบ' : 'Compare'}</button>
+            <button class="btn-modal ghost vault-compare" data-id="${h.id}" style="padding:3px 8px; font-size:11px; ${isComparing?'background:rgba(168,85,247,0.18); color:#C084FC; font-weight:bold;':''}">👁 ${isComparing ? 'กำลังเทียบ' : 'Compare'}</button>
             <button class="btn-modal ghost vault-restore" data-id="${h.id}" style="padding:3px 8px; font-size:11px;">⤴ Restore</button>
             <button class="btn-modal danger vault-del" data-id="${h.id}" style="padding:3px 8px; font-size:11px;">✕</button>
           </div>
@@ -3655,13 +3668,19 @@
       `<div class="dash-list-item"><span>${escapeHtml(h.label)}</span><span style="color:var(--dt-text-muted); font-size:10.5px;">${new Date(h.savedAt).toLocaleDateString('th-TH')}</span></div>`
     ).join('') || '<div class="dash-list-empty">ยังไม่มี Commit</div>';
 
-    // Gantt Overlay Analysis — compact bar-per-task comparison vs the official baseline
+    // Gantt Overlay Analysis — current & baseline bars overlaid on the same track per task
     let overlayHtml = '<div class="dash-list-empty">ตั้ง Official Baseline ที่ Config เพื่อดู Overlay Analysis</div>';
+    let overlayLegendHtml = '';
+    let overlayHasRows = false;
     if(officialBaseline){
-      const compareTasks = tasks.filter(t => !t.hidden && t.type !== 'mark' && t.type !== 'highlight' && t.start && t.end && officialBaseline.snapshot[t.id])
+      const allCompare = tasks.filter(t => !t.hidden && t.type !== 'mark' && t.type !== 'highlight' && t.start && t.end && officialBaseline.snapshot[t.id]);
+      const regularTasks = allCompare.filter(t => t.type !== 'milestone')
         .sort((a, b) => (cp.criticalIds.has(b.id) ? 1 : 0) - (cp.criticalIds.has(a.id) ? 1 : 0))
-        .slice(0, 10);
+        .slice(0, 8);
+      const milestoneTasks = allCompare.filter(t => t.type === 'milestone').slice(0, 3);
+      const compareTasks = regularTasks.concat(milestoneTasks);
       if(compareTasks.length){
+        overlayHasRows = true;
         let minD = null, maxD = null;
         compareTasks.forEach(t => {
           const snap = officialBaseline.snapshot[t.id];
@@ -3674,19 +3693,45 @@
         const totalSpan = Math.max(1, diffDays(minD, maxD));
         overlayHtml = compareTasks.map(t => {
           const snap = officialBaseline.snapshot[t.id];
+          const isCritical = cp.criticalIds.has(t.id);
+          const durDays = diffDays(parseDate(t.start), parseDate(t.end)) + 1;
+
+          if(t.type === 'milestone'){
+            const pos = diffDays(minD, parseDate(t.start)) / totalSpan * 100;
+            return `
+              <div class="overlay-row">
+                <div class="overlay-row-label" title="${escapeHtml(t.name)}">◆ ${escapeHtml(t.name)}</div>
+                <div class="overlay-row-dur">-</div>
+                <div class="overlay-row-track">
+                  <div class="overlay-milestone-diamond" style="left:${pos}%;" title="${t.start} (Target: ${snap.targetStart})"></div>
+                </div>
+              </div>`;
+          }
+
           const curL = diffDays(minD, parseDate(t.start)) / totalSpan * 100;
           const curW = Math.max(1, diffDays(parseDate(t.start), parseDate(t.end)) / totalSpan * 100);
           const baseL = diffDays(minD, parseDate(snap.targetStart)) / totalSpan * 100;
           const baseW = Math.max(1, diffDays(parseDate(snap.targetStart), parseDate(snap.targetEnd)) / totalSpan * 100);
+          const slip = countWorkdaysBetween(snap.targetEnd, t.end) - 1;
+          const slipLabel = slip > 0 ? `<span class="overlay-slip-label" style="left:${Math.min(92, curL + curW + 1)}%;">+${slip}d SLIP</span>` : '';
           return `
             <div class="overlay-row">
-              <div class="overlay-row-label" title="${escapeHtml(t.name)}">${cp.criticalIds.has(t.id) ? '🔴' : '⏳'} ${escapeHtml(t.name)}</div>
+              <div class="overlay-row-label ${isCritical ? 'critical' : ''}" title="${escapeHtml(t.name)}">${escapeHtml(t.name)}</div>
+              <div class="overlay-row-dur">${durDays}d</div>
               <div class="overlay-row-track">
-                <div class="overlay-row-bar current" style="left:${curL}%; width:${curW}%;" title="Current: ${t.start} - ${t.end}"></div>
                 <div class="overlay-row-bar baseline" style="left:${baseL}%; width:${baseW}%;" title="Baseline: ${snap.targetStart} - ${snap.targetEnd}"></div>
+                <div class="overlay-row-bar current ${isCritical ? 'critical' : ''}" style="left:${curL}%; width:${curW}%;" title="Current: ${t.start} - ${t.end}"></div>
+                ${slipLabel}
               </div>
             </div>`;
         }).join('');
+        overlayLegendHtml = `
+          <div class="dash-section-legend">
+            <span><span class="dash-legend-dot" style="background:var(--dt-scurve-planned);"></span>Current Plan</span>
+            <span><span class="dash-legend-dot" style="background:var(--dt-critical-path);"></span>Critical Path</span>
+            <span><span class="dash-legend-dot" style="background:transparent; border:1.5px dashed var(--dt-baseline-purple);"></span>Target Baseline Overlay</span>
+            <span><span class="dash-legend-dot" style="background:var(--dt-warning-amber); transform:rotate(45deg); border-radius:2px;"></span>Milestone</span>
+          </div>`;
       }
     }
 
@@ -3714,8 +3759,14 @@
 
       <div class="dash-two-col">
         <div class="dash-section">
-          <div class="dash-section-title">📈 Gantt Overlay Analysis: Current Schedule vs Baseline</div>
-          <div class="dash-section-subtitle" style="margin-bottom:12px;">${officialBaseline ? `Comparing against: ${escapeHtml(officialBaseline.label)}` : ''}</div>
+          <div class="dash-section-header-row">
+            <div>
+              <div class="dash-section-title">📈 Gantt Overlay Analysis: Current Schedule vs Baseline</div>
+              <div class="dash-section-subtitle">${officialBaseline ? `Comparing against: ${escapeHtml(officialBaseline.label)}` : ''}</div>
+            </div>
+          </div>
+          ${overlayLegendHtml}
+          ${overlayHasRows ? '<div class="overlay-row-head"><span>WBS & Work Package</span><span>Dur</span><span>Timeline</span></div>' : ''}
           ${overlayHtml}
         </div>
         <div class="dash-section">
@@ -3750,10 +3801,10 @@
       renderBaselinePage();
     });
 
-    container.querySelectorAll('.vault-state-select').forEach(sel => {
-      sel.addEventListener('change', () => {
-        const h = baselineHistory.find(x => x.id === +sel.dataset.id);
-        if(h){ h.state = sel.value; saveToStorage(); }
+    container.querySelectorAll('.vault-state-badge').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const h = baselineHistory.find(x => x.id === +btn.dataset.id);
+        if(h){ h.state = btn.dataset.next; saveToStorage(); renderBaselinePage(); }
       });
     });
 

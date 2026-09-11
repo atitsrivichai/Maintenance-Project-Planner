@@ -28,6 +28,7 @@
 
   window.__fbStatus = 'signed-out';
   window.__fbUser = null;
+  window.__fbProjectId = firebaseConfig.projectId;
 
   let resolveReadyUid = null;
   let readyUid = new Promise((resolve) => { resolveReadyUid = resolve; });
@@ -730,6 +731,21 @@
   .modal-section-title { font-size: 12px; font-weight: 700; color: var(--dt-text-secondary); text-transform: uppercase; margin: 12px 0 8px; display: flex; align-items: center; justify-content: space-between; }
   .mh-item-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; background: var(--dt-surface-base); padding: 8px; border-radius: 6px; border: 1px solid var(--dt-border-subtle); }
 
+  /* System & Project Configuration modal */
+  .config-segmented { display: flex; gap: 8px; flex-wrap: wrap; }
+  .config-segmented-btn {
+    flex: 1; min-width: 140px; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--dt-border-strong);
+    background: var(--dt-surface-base); color: var(--dt-text-secondary); font-size: 11.5px; font-weight: 600;
+    cursor: pointer; text-align: center; transition: all 0.12s; line-height: 1.4;
+  }
+  .config-segmented-btn:hover { background: var(--dt-surface-hover); color: var(--dt-text-primary); }
+  .config-segmented-btn.active { background: var(--dt-primary); color: #FFF; border-color: var(--dt-primary); }
+  .config-segmented-btn .config-segmented-sub { font-size: 9.5px; font-weight: 400; opacity: 0.8; }
+  .config-readonly-box {
+    background: var(--dt-surface-base); border: 1px solid var(--dt-border-subtle); border-radius: 5px;
+    padding: 8px 10px; font-size: 12px; color: var(--dt-text-secondary); font-family: var(--font-mono);
+  }
+
   .quick-shift-btn {
     background: rgba(37,99,235,0.12); border: 1px solid var(--dt-primary); color: var(--dt-scurve-planned); font-size: 11px; font-weight: 600;
     padding: 4px 8px; border-radius: 4px; cursor: pointer; transition: all 0.15s;
@@ -1117,8 +1133,8 @@
       <button class="nav-rail-btn active" data-view="gantt" title="Gantt Chart"><span class="nav-rail-btn-icon">📊</span><span class="nav-rail-btn-label">Timeline</span></button>
       <button class="nav-rail-btn" data-view="dashboard" title="Dashboard ภาพรวมโครงการ"><span class="nav-rail-btn-icon">📈</span><span class="nav-rail-btn-label">Progress</span></button>
       <button class="nav-rail-btn" id="btnNavBaseline" title="Baseline Snapshots"><span class="nav-rail-btn-icon">📸</span><span class="nav-rail-btn-label">Baseline</span></button>
-      <button class="nav-rail-btn" id="btnNavCalendar" title="ตั้งค่าเวลาทำงานและวันหยุดปฏิทิน"><span class="nav-rail-btn-icon">⚙️</span><span class="nav-rail-btn-label">Calendar</span></button>
-      <button class="nav-rail-btn" id="btnNavConfig" title="เมนู / ตั้งค่าอื่นๆ"><span class="nav-rail-btn-icon">☰</span><span class="nav-rail-btn-label">Config</span></button>
+      <button class="nav-rail-btn" id="btnNavCalendar" title="ตั้งค่าเวลาทำงานและวันหยุดปฏิทิน"><span class="nav-rail-btn-icon">📅</span><span class="nav-rail-btn-label">Calendar</span></button>
+      <button class="nav-rail-btn" id="btnNavConfig" title="System & Project Configuration"><span class="nav-rail-btn-icon">⚙️</span><span class="nav-rail-btn-label">Config</span></button>
     </div>
 
     <!-- Left Sidebar: Task Tree -->
@@ -1311,6 +1327,10 @@
           <label class="form-label">Actual Cost (บาท)</label>
           <input type="number" class="form-input" id="modalActualCost" min="0" step="1" placeholder="0">
         </div>
+        <div class="form-group">
+          <label class="form-label">Man-Hours (ชม.)</label>
+          <input type="number" class="form-input" id="modalManHours" min="0" step="1" placeholder="0">
+        </div>
       </div>
 
       <div class="form-group" style="margin-top:14px;">
@@ -1454,6 +1474,184 @@
   </div>
 </div>
 
+<!-- System & Project Configuration Modal Dialog -->
+<div class="modal-backdrop" id="configModal">
+  <div class="modal-dialog" style="width:800px;">
+    <div class="modal-nav-tabs" id="configTabsRow">
+      <button class="tab-btn active" data-tab="info">📋 ข้อมูลโครงการ & WBS</button>
+      <button class="tab-btn" data-tab="cpm">🧭 CPM Engine & S-Curve Rules</button>
+      <button class="tab-btn" data-tab="sync">☁️ Cloud Sync & Firebase</button>
+      <button class="tab-btn" data-tab="security">🔐 สิทธิ์และการเข้าถึง</button>
+      <button type="button" class="btn-modal ghost" id="btnRecalcCPM" style="margin-left:auto; flex-shrink:0; align-self:center;" title="บังคับคำนวณ CPM ใหม่ทันที (ใช้เมื่อปิด Instant CPM Recalculate)">🔄 Recalculate CPM</button>
+    </div>
+    <div class="modal-body">
+      <!-- Tab 1: Project Info & WBS -->
+      <div class="tab-content active" id="tabConfigInfo">
+        <div class="modal-section-title">ข้อมูลทั่วไปของโครงการ</div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label">ชื่อโครงการ (Project Title)</label>
+          <input type="text" class="form-input" id="cfgProjectName">
+        </div>
+        <div class="form-grid-2col">
+          <div class="form-group">
+            <label class="form-label">สถานที่และโรงไฟฟ้า (Plant Facility)</label>
+            <input type="text" class="form-input" id="cfgPlantFacility" placeholder="เช่น EGAT Rayong Power Plant">
+          </div>
+          <div class="form-group">
+            <label class="form-label">รหัสการหยุดซ่อม (Outage Code)</label>
+            <input type="text" class="form-input" id="cfgOutageCode" placeholder="เช่น TO-2026-Q3-U4">
+          </div>
+          <div class="form-group">
+            <label class="form-label">ระยะเวลาโครงการ (Planned Duration)</label>
+            <div class="config-readonly-box" id="cfgPlannedDuration">-</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Target Cold Run Date</label>
+            <input type="date" class="form-input" id="cfgTargetColdRun">
+          </div>
+          <div class="form-group" style="grid-column: span 2;">
+            <label class="form-label">Grid Sync COD Milestone</label>
+            <input type="date" class="form-input" id="cfgGridSyncCOD">
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: CPM Engine & S-Curve Rules -->
+      <div class="tab-content" id="tabConfigCpm">
+        <div class="modal-section-title">วิธีถ่วงน้ำหนักความคืบหน้า (Progress Weight Calculation Method)</div>
+        <div class="config-segmented" id="cfgWeightMethodGroup">
+          <button type="button" class="config-segmented-btn active" data-value="duration">Duration-Weighted<br><span class="config-segmented-sub">(ตามระยะเวลางาน)</span></button>
+          <button type="button" class="config-segmented-btn" data-value="manhour">Man-Hour Weighted<br><span class="config-segmented-sub">(ตามชั่วโมงแรงงาน)</span></button>
+          <button type="button" class="config-segmented-btn" data-value="cost">Cost-Weighted<br><span class="config-segmented-sub">(ตามงบประมาณ บาท)</span></button>
+        </div>
+
+        <div class="form-grid-2col" style="margin-top:16px;">
+          <div class="form-group">
+            <label class="form-label">เปรียบเทียบกับ Baseline (Comparison Target)</label>
+            <select class="form-select" id="cfgOfficialBaseline">
+              <option value="">— ไม่ระบุ —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">หน่วยเงินตรา (Currency Unit)</label>
+            <select class="form-select" id="cfgCurrencyUnit">
+              <option value="THB">฿ THB</option>
+              <option value="USD">$ USD</option>
+              <option value="EUR">€ EUR</option>
+            </select>
+          </div>
+        </div>
+
+        <label class="checkbox-group" style="margin-top:14px;">
+          <input type="checkbox" id="cfgConfidenceEnabled">
+          แสดงแถบความคลาดเคลื่อน S-Curve (Confidence Envelope)
+        </label>
+        <div class="form-group" style="margin-top:8px; max-width:200px;" id="cfgConfidencePctGroup">
+          <label class="form-label">ค่าความคลาดเคลื่อน (±%)</label>
+          <input type="number" class="form-input" id="cfgConfidencePct" min="1" max="50" step="1" value="5">
+        </div>
+
+        <div class="modal-section-title" style="margin-top:18px;">พารามิเตอร์การคำนวณ Critical Path Method</div>
+        <div class="form-group" style="margin-bottom:10px;">
+          <label class="form-label">เกณฑ์กำหนดเส้นทางวิกฤต (Critical Float Threshold)</label>
+          <div class="config-segmented" id="cfgFloatThresholdGroup">
+            <button type="button" class="config-segmented-btn active" data-value="0">Total Float ≤ 0 วัน<br><span class="config-segmented-sub">(Critical)</span></button>
+            <button type="button" class="config-segmented-btn" data-value="1">Float ≤ 1 วัน<br><span class="config-segmented-sub">(Near-Critical)</span></button>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:10px;">
+          <label class="form-label">กลยุทธ์การคำนวณ Early & Late Dates</label>
+          <select class="form-select" id="cfgDateStrategy">
+            <option value="push">Early Dates Push (คำนวณอัตโนมัติจากวันจบจริง)</option>
+            <option value="cod">Late Dates Constrained by Target COD (บังคับด้วย Grid Sync COD)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">การนับวันหน่วงความสัมพันธ์ (Dependency Lag Calculation)</label>
+          <div class="config-segmented" id="cfgLagModeGroup">
+            <button type="button" class="config-segmented-btn active" data-value="workdays">Calendar Working Days Only<br><span class="config-segmented-sub">(ข้ามวันหยุดอัตโนมัติ)</span></button>
+            <button type="button" class="config-segmented-btn" data-value="calendar">Include Non-Working Days<br><span class="config-segmented-sub">(นับรวมวันหยุด)</span></button>
+          </div>
+        </div>
+
+        <label class="checkbox-group" style="margin-top:14px;">
+          <input type="checkbox" id="cfgInstantRecalc" checked>
+          คำนวณผลกระทบทันทีเมื่อมีการแก้ไข (Instant CPM Recalculate)
+        </label>
+        <div style="font-size:11px; color:var(--dt-text-muted); margin-top:4px;">
+          * ถ้าปิด ตัวเลข Critical Path จะไม่อัปเดตจนกว่าจะกดปุ่ม "🔄 Recalculate CPM" ที่หัวหน้าต่างนี้
+        </div>
+      </div>
+
+      <!-- Tab 3: Cloud Sync & Firebase -->
+      <div class="tab-content" id="tabConfigSync">
+        <div class="modal-section-title">การเชื่อมต่อคลาวด์และพื้นที่จัดเก็บ</div>
+        <div class="form-grid-2col">
+          <div class="form-group">
+            <label class="form-label">Firebase Project Target ID</label>
+            <div class="config-readonly-box" id="cfgFirebaseProjectId">-</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Firestore Document Scope</label>
+            <div class="config-readonly-box" id="cfgFirestoreScope">-</div>
+          </div>
+        </div>
+        <div style="font-size:11px; color:var(--dt-text-muted); margin-top:6px;">
+          * แสดงผลอย่างเดียว (Read-Only) — การเปลี่ยนค่าปลายทาง Firebase/Firestore ต้องแก้ที่โค้ด/environment
+          ของแอปเท่านั้น เพื่อความปลอดภัยของข้อมูล ไม่เปิดให้แก้จาก UI นี้โดยตรง
+        </div>
+
+        <div class="modal-section-title" style="margin-top:16px;">กลยุทธ์การซิงค์ข้อมูล (Sync Mechanism Strategy)</div>
+        <div class="config-readonly-box" style="line-height:1.6;">
+          Push on Edit (Fire-and-forget) — เมื่อมีการแก้ไขในตารางหรือลาก Task ระบบจะบันทึก LocalStorage ทันที
+          แล้วส่งข้อมูลไปยัง Firestore แบบ async โดยไม่รอผลตอบกลับ เพื่อไม่ให้ Latency ในห้องควบคุมสะดุด
+        </div>
+
+        <div class="form-grid-2col" style="margin-top:14px;">
+          <div class="form-group">
+            <label class="form-label">LocalStorage Snapshot</label>
+            <div class="config-readonly-box" id="cfgLocalStorageInfo">-</div>
+          </div>
+          <div class="form-group" style="justify-content:flex-end;">
+            <button type="button" class="btn-modal ghost" id="btnClearCache">ล้างแคช (Clear Cache)</button>
+          </div>
+        </div>
+
+        <div class="modal-section-title" style="margin-top:16px;">การสำรองข้อมูลและความปลอดภัย</div>
+        <label class="checkbox-group">
+          <input type="checkbox" id="cfgAutoSnapshotEnabled">
+          สร้างสำเนาอัตโนมัติ (Automated Rolling Snapshot) ทุก
+          <input type="number" class="form-input" id="cfgAutoSnapshotInterval" min="1" step="1" value="30" style="width:60px; display:inline-block; margin:0 4px;">
+          นาที
+        </label>
+        <div style="font-size:11px; color:var(--dt-text-muted); margin-top:4px; margin-bottom:12px;">
+          * ทำงานเฉพาะตอนเปิดหน้านี้ค้างไว้ในเบราว์เซอร์ (client-side timer) ไม่ใช่ server cron job จริง
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="btn-modal ghost" id="btnBackupJSON">📥 ดาวน์โหลด Full JSON Database Backup</button>
+          <button type="button" class="btn-modal ghost" id="btnVerifyChecksum">🔒 ตรวจสอบ Integrity Checksum (SHA-256)</button>
+        </div>
+        <div class="config-readonly-box" id="cfgChecksumResult" style="display:none; margin-top:8px; word-break:break-all;"></div>
+      </div>
+
+      <!-- Tab 4: Security & Access -->
+      <div class="tab-content" id="tabConfigSecurity">
+        <div class="modal-section-title">บัญชีที่เข้าสู่ระบบ (Current Session)</div>
+        <div class="config-readonly-box" id="cfgCurrentUser">-</div>
+        <div style="font-size:11px; color:var(--dt-text-muted); margin-top:10px; line-height:1.6;">
+          * แอปนี้เป็นโมเดล 1 บัญชีต่อ 1 แผนงาน (ข้อมูลเก็บที่ Firestore <code>plans/{'{uid}'}</code> ของบัญชีที่
+          ล็อกอินเท่านั้น) ยังไม่มีระบบสิทธิ์/role หลายระดับ (เช่น Viewer/Editor/Admin) ในเวอร์ชันนี้
+        </div>
+        <button type="button" class="btn-modal danger" id="btnConfigSignOut" style="margin-top:14px;">ออกจากระบบ (Sign Out)</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <div></div>
+      <button class="btn-modal primary" id="btnSaveConfig">✅ บันทึกการตั้งค่า (Save & Apply)</button>
+    </div>
+  </div>
+</div>
+
 <!-- Marks & Highlights Modal Dialog -->
 <div class="modal-backdrop" id="mhModal">
   <div class="modal-dialog" style="width:620px;">
@@ -1541,13 +1739,29 @@
     shiftCrews: 0
   };
 
+  let systemConfig = {
+    plantFacility: '', outageCode: '', targetColdRunDate: '', gridSyncCOD: '',
+    progressWeightMethod: 'duration',   // 'duration' | 'manhour' | 'cost'
+    officialBaselineId: null,           // label metadata only — does not drive any formula
+    currencyUnit: 'THB',
+    scurveConfidencePct: 0,             // 0 = off, >0 = show ±X% envelope
+    cpmFloatThreshold: 0,               // 0 = Total Float <= 0 (Critical), 1 = <= 1 (Near-Critical)
+    dateStrategy: 'push',               // 'push' (auto project end) | 'cod' (constrained by gridSyncCOD)
+    dependencyLagMode: 'workdays',      // 'workdays' (skip non-working days) | 'calendar' (include them)
+    instantRecalc: true,
+    autoSnapshotEnabled: false,
+    autoSnapshotIntervalMin: 30
+  };
+  let cachedCP = null;
+  let autoSnapshotTimer = null;
+
   // --- SAMPLE PLAN BUNDLE (Project Test Function 01) ---
   // Used by "Create another plan..." and "Reset to Sample Plan" — includes tasks + baseline + calendar + timescale
   let defaultTasks = [
-    { id: 12, name: "Task A01", type: "task", status: "completed", color: "#33db4f", start: "2026-06-01", end: "2026-06-12", targetStart: "2026-07-30", targetEnd: "2026-08-06", progress: 100, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "", budgetCost: 50000, actualCost: 48000 },
-    { id: 16, name: "Task A02", type: "task", status: "completed", color: "#3498db", start: "2026-06-15", end: "2026-06-19", targetStart: "2026-07-30", targetEnd: "2026-08-06", progress: 100, milestone: false, deps: [{id:12, type:"FS"}], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "", budgetCost: 30000, actualCost: 33000 },
-    { id: 18, name: "Task A03", type: "task", status: "inprogress", color: "#3498db", start: "2026-06-22", end: "2026-06-26", targetStart: "2026-07-30", targetEnd: "2026-08-07", progress: 40, milestone: false, deps: [{id:16, type:"FS"}], parentId: null, collapsed: false, progressMode: "auto", desc: "ตรวจสอบ NDT และถอด Rotor ตามขั้นตอนความปลอดภัย", owner: "Wichai K.", hidden: false, team: "TURB-MECH-A", priority: "Major Component", criticalOverride: false, calendarLabel: "Std 6-Day Plant (Sun Off)", attachment: "", budgetCost: 20000, actualCost: 9000 },
-    { id: 19, name: "Task B01", type: "task", status: "inprogress", color: "#3498db", start: "2026-06-08", end: "2026-06-10", targetStart: "2026-07-30", targetEnd: "2026-08-07", progress: 0, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "", budgetCost: 0, actualCost: 0 },
+    { id: 12, name: "Task A01", type: "task", status: "completed", color: "#33db4f", start: "2026-06-01", end: "2026-06-12", targetStart: "2026-07-30", targetEnd: "2026-08-06", progress: 100, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "", budgetCost: 50000, actualCost: 48000, manHours: 80 },
+    { id: 16, name: "Task A02", type: "task", status: "completed", color: "#3498db", start: "2026-06-15", end: "2026-06-19", targetStart: "2026-07-30", targetEnd: "2026-08-06", progress: 100, milestone: false, deps: [{id:12, type:"FS"}], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "", budgetCost: 30000, actualCost: 33000, manHours: 40 },
+    { id: 18, name: "Task A03", type: "task", status: "inprogress", color: "#3498db", start: "2026-06-22", end: "2026-06-26", targetStart: "2026-07-30", targetEnd: "2026-08-07", progress: 40, milestone: false, deps: [{id:16, type:"FS"}], parentId: null, collapsed: false, progressMode: "auto", desc: "ตรวจสอบ NDT และถอด Rotor ตามขั้นตอนความปลอดภัย", owner: "Wichai K.", hidden: false, team: "TURB-MECH-A", priority: "Major Component", criticalOverride: false, calendarLabel: "Std 6-Day Plant (Sun Off)", attachment: "", budgetCost: 20000, actualCost: 9000, manHours: 32 },
+    { id: 19, name: "Task B01", type: "task", status: "inprogress", color: "#3498db", start: "2026-06-08", end: "2026-06-10", targetStart: "2026-07-30", targetEnd: "2026-08-07", progress: 0, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "", budgetCost: 0, actualCost: 0, manHours: 0 },
     { id: 20, name: "Marks 01", type: "mark", status: "delay", color: "#E74C3C", start: "2026-07-30", end: "2026-07-30", targetStart: "2026-07-30", targetEnd: "2026-07-30", progress: 0, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: true, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "" },
     { id: 21, name: "Highlighte 01", type: "highlight", status: "inprogress", color: "#2ECC71", start: "2026-07-30", end: "2026-08-06", targetStart: "2026-07-30", targetEnd: "2026-08-06", progress: 0, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: true, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "" },
     { id: 22, name: "Task B02", type: "task", status: "inprogress", color: "#3498db", start: "2026-06-15", end: "2026-06-23", targetStart: "2026-07-30", targetEnd: "2026-08-07", progress: 94, milestone: false, deps: [{id:19, type:"FS"}], parentId: null, collapsed: false, progressMode: "auto", desc: "", owner: "", hidden: false, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "" },
@@ -1750,7 +1964,7 @@
     return {
       projectName: document.getElementById('projectNameInput').value,
       tasks, baselineHistory, currentZoom, showCriticalPath, showSCurve,
-      viewMode, viewStart, viewEnd, workingCalendar, timescaleTiers, projectSafety
+      viewMode, viewStart, viewEnd, workingCalendar, timescaleTiers, projectSafety, systemConfig
     };
   }
 
@@ -1783,6 +1997,7 @@
         if(t.attachment === undefined) t.attachment = '';
         if(t.budgetCost === undefined) t.budgetCost = 0;
         if(t.actualCost === undefined) t.actualCost = 0;
+        if(t.manHours === undefined) t.manHours = 0;
       });
     }
     if(Array.isArray(payload.baselineHistory)) baselineHistory = payload.baselineHistory;
@@ -1792,6 +2007,7 @@
     if(payload.viewMode){ viewMode = payload.viewMode; viewStart = payload.viewStart; viewEnd = payload.viewEnd; }
     if(payload.workingCalendar) workingCalendar = payload.workingCalendar;
     if(payload.projectSafety) projectSafety = { ...projectSafety, ...payload.projectSafety };
+    if(payload.systemConfig) systemConfig = { ...systemConfig, ...payload.systemConfig };
     if(payload.timescaleTiers) timescaleTiers = payload.timescaleTiers;
 
     nextId = Math.max(...tasks.map(t=>t.id), 0) + 1;
@@ -1871,7 +2087,21 @@
   }
 
   // --- FULL CPM CRITICAL PATH ENGINE (FS, SS, FF, SF FULL LAG) ---
+  // Public entry point — respects Instant CPM Recalculate (Config > CPM Engine). When turned off,
+  // returns the last computed result instead of recalculating on every call, until
+  // recalculateCPMNow() is invoked explicitly (e.g. the "Recalculate CPM" button in the Config modal).
   function computeCriticalPath(){
+    if(!systemConfig.instantRecalc && cachedCP) return cachedCP;
+    cachedCP = computeCriticalPathInternal();
+    return cachedCP;
+  }
+
+  function recalculateCPMNow(){
+    cachedCP = null;
+    render();
+  }
+
+  function computeCriticalPathInternal(){
     const validTasks = tasks.filter(t => !t.hidden && t.status !== 'cancelled' && t.type !== 'mark' && t.type !== 'highlight' && t.start && t.end);
     if(!validTasks.length) return { criticalIds: new Set(), criticalEdges: new Set(), totalDays: 0, criticalCount: 0, minTotalFloat: 0, minFreeFloat: 0, taskFloats: {}, projectEndStr: null };
 
@@ -1907,7 +2137,7 @@
 
           let reqStart = earliestStart;
           if(dep.type === 'FS'){
-            reqStart = getNextWorkday(pEnd);
+            reqStart = systemConfig.dependencyLagMode === 'calendar' ? addDays(pEnd, 1) : getNextWorkday(pEnd);
           } else if(dep.type === 'SS'){
             reqStart = pStart;
           } else if(dep.type === 'FF'){
@@ -1937,11 +2167,19 @@
 
     const projectEndStr = fmtDate(maxProjectEnd);
 
+    // Backward-pass anchor: normally the auto-computed project end (Early Dates Push), but when
+    // Date Strategy is set to "Late Dates Constrained by Target COD" and a Grid Sync COD is set,
+    // that fixed date drives the backward pass instead. If the COD is earlier than the natural
+    // finish, every task's Total Float will legitimately go negative — that is correct CPM
+    // behavior for an over-constrained schedule, not a bug.
+    const backwardAnchorStr = (systemConfig.dateStrategy === 'cod' && systemConfig.gridSyncCOD)
+      ? systemConfig.gridSyncCOD : projectEndStr;
+
     // Backward Pass
     validTasks.forEach(t => {
       const item = taskMap[t.id];
-      item.LF = projectEndStr;
-      item.LS = calculateStartDateFromEnd(projectEndStr, item.duration);
+      item.LF = backwardAnchorStr;
+      item.LS = calculateStartDateFromEnd(backwardAnchorStr, item.duration);
     });
 
     changed = true; passGuard = 0;
@@ -1949,7 +2187,7 @@
       changed = false; passGuard++;
       validTasks.forEach(t => {
         const item = taskMap[t.id];
-        let latestFinish = parseDate(projectEndStr);
+        let latestFinish = parseDate(backwardAnchorStr);
 
         validTasks.forEach(sTask => {
           const sItem = taskMap[sTask.id];
@@ -1987,7 +2225,7 @@
     validTasks.forEach(t => {
       const item = taskMap[t.id];
       item.TF = countWorkdaysBetween(item.ES, item.LS) - 1;
-      if(item.TF <= 0 || item.ES === item.LS){
+      if(item.TF <= systemConfig.cpmFloatThreshold || item.ES === item.LS){
         criticalIds.add(t.id);
       }
     });
@@ -2871,6 +3109,17 @@
     return (diffDays(s, d) / diffDays(s, e)) * 100;
   }
 
+  // Progress weight per task for S-Curve / Overall Progress aggregation, per Config >
+  // CPM Engine > Progress Weight Calculation Method. Falls back to duration when the
+  // selected field (man-hours/budget) has no value, so a task never contributes zero
+  // weight and skews the aggregate to NaN/0.
+  function getTaskWeight(t){
+    const dur = countWorkdaysBetween(t.start, t.end);
+    if(systemConfig.progressWeightMethod === 'manhour') return t.manHours || dur;
+    if(systemConfig.progressWeightMethod === 'cost') return t.budgetCost || dur;
+    return dur;
+  }
+
   // Data foundation for EVM (SPI/CPI) — เตรียมไว้สำหรับ Step 6 Dashboard ในอนาคต ยังไม่มี UI เรียกใช้ตอนนี้
   function computeEVM(){
     const activeTasks = tasks.filter(t => !t.hidden && t.status !== 'cancelled' && t.type !== 'mark' && t.type !== 'highlight' && t.start && t.end);
@@ -2913,20 +3162,19 @@
     if(!showSCurve){ container.innerHTML = ''; return; }
 
     const activeTasks = tasks.filter(t => !t.hidden && t.status !== 'cancelled' && t.type !== 'mark' && t.type !== 'highlight' && t.start && t.end);
-    let totalWorkdaysSum = 0;
-    activeTasks.forEach(t => { totalWorkdaysSum += countWorkdaysBetween(t.start, t.end); });
-    if(totalWorkdaysSum <= 0) totalWorkdaysSum = 1;
+    let totalWeightSum = 0;
+    activeTasks.forEach(t => { totalWeightSum += getTaskWeight(t); });
+    if(totalWeightSum <= 0) totalWeightSum = 1;
 
     const totalDays = diffDays(min, max);
     const H = 160, padTop = 10, padBottom = 20, chartH = H - padTop - padBottom;
 
-    let plannedPts = [], actualPts = [];
+    let plannedPts = [], actualPts = [], upperPts = [], lowerPts = [];
     for(let i = 0; i <= totalDays; i += Math.max(1, Math.floor(totalDays / 200))){
       const d = addDays(min, i);
       let sumP = 0, sumA = 0;
       activeTasks.forEach(t => {
-        const taskDur = countWorkdaysBetween(t.start, t.end);
-        const weight = taskDur / totalWorkdaysSum;
+        const weight = getTaskWeight(t) / totalWeightSum;
         const pPct = pctAt(d, parseDate(t.targetStart || t.start), parseDate(t.targetEnd || t.end));
         const aPct = pctAt(d, parseDate(t.start), parseDate(t.end));
         sumP += weight * pPct;
@@ -2935,6 +3183,12 @@
       const x = i * dayWidth;
       plannedPts.push(`${x},${padTop + chartH - (sumP / 100 * chartH)}`);
       actualPts.push(`${x},${padTop + chartH - (sumA / 100 * chartH)}`);
+      if(systemConfig.scurveConfidencePct > 0){
+        const upperPct = Math.min(100, sumP + systemConfig.scurveConfidencePct);
+        const lowerPct = Math.max(0, sumP - systemConfig.scurveConfidencePct);
+        upperPts.push(`${x},${padTop + chartH - (upperPct / 100 * chartH)}`);
+        lowerPts.push(`${x},${padTop + chartH - (lowerPct / 100 * chartH)}`);
+      }
     }
 
     const gridLines = [0, 25, 50, 75, 100].map(p => {
@@ -2942,13 +3196,21 @@
       return `<line x1="0" y1="${y}" x2="${totalWidth}" y2="${y}" stroke="#1E293B" stroke-width="1"/><text x="4" y="${y - 3}" font-size="9" fill="#64748B" font-family="monospace">${p}%</text>`;
     }).join('');
 
+    const weightLabel = systemConfig.progressWeightMethod === 'manhour' ? 'Man-Hour-Weighted'
+      : systemConfig.progressWeightMethod === 'cost' ? 'Cost-Weighted' : 'Duration-Weighted';
+    const envelopeSvg = systemConfig.scurveConfidencePct > 0
+      ? `<polyline points="${upperPts.join(' ')}" fill="none" stroke="#38BDF8" stroke-width="1" stroke-dasharray="2,3" opacity="0.5"/>
+         <polyline points="${lowerPts.join(' ')}" fill="none" stroke="#38BDF8" stroke-width="1" stroke-dasharray="2,3" opacity="0.5"/>`
+      : '';
+
     container.innerHTML = `
       <div class="scurve-panel">
-        <div class="scurve-title">📈 S-Curve (Duration-Weighted Progress — ประมาณการความก้าวหน้าสะสมถ่วงน้ำหนักตามระยะเวลา)</div>
+        <div class="scurve-title">📈 S-Curve (${weightLabel} Progress — ประมาณการความก้าวหน้าสะสมถ่วงน้ำหนัก)</div>
         <svg width="${totalWidth}" height="${H}">
           ${gridLines}
           <polyline points="${plannedPts.join(' ')}" fill="none" stroke="#38BDF8" stroke-width="2" stroke-dasharray="5,4"/>
           <polyline points="${actualPts.join(' ')}" fill="none" stroke="#34D399" stroke-width="2.5"/>
+          ${envelopeSvg}
         </svg>
       </div>`;
   }
@@ -2969,7 +3231,7 @@
   });
   document.getElementById('btnNavBaseline').addEventListener('click', () => { renderHistoryModal(); document.getElementById('historyModal').classList.add('open'); });
   document.getElementById('btnNavCalendar').addEventListener('click', openCalendarModal);
-  document.getElementById('btnNavConfig').addEventListener('click', openDrawer);
+  document.getElementById('btnNavConfig').addEventListener('click', openConfigModal);
 
   // --- DASHBOARD OVERVIEW RENDERER ---
   const DASH_STATUS_ORDER = ['completed', 'inprogress', 'delay', 'problem', 'cancelled', 'none'];
@@ -2978,21 +3240,26 @@
     problem: 'มีปัญหา', cancelled: 'ยกเลิก', none: 'ยังไม่เริ่ม'
   };
 
+  const CURRENCY_SYMBOLS = { THB: '฿', USD: '$', EUR: '€' };
+
   function renderDashboard(){
     const container = document.getElementById('dashboardView');
     const realTasks = tasks.filter(t => !t.hidden && t.type !== 'mark' && t.type !== 'highlight' && t.type !== 'milestone' && t.start && t.end);
     const today = new Date(); today.setHours(0,0,0,0);
+    const curSym = CURRENCY_SYMBOLS[systemConfig.currencyUnit] || '฿';
+    const officialBaseline = systemConfig.officialBaselineId ? baselineHistory.find(h => h.id === systemConfig.officialBaselineId) : null;
+    const officialBaselineName = officialBaseline ? officialBaseline.label : '';
 
-    // Overall duration-weighted progress: Actual vs Planned (for the schedule-variance % on tile 1)
-    let totalDur = 0, weightedActual = 0, weightedPlanned = 0;
+    // Overall progress: Actual vs Planned, weighted per Config > CPM Engine > Progress Weight Method
+    let totalWeight = 0, weightedActual = 0, weightedPlanned = 0;
     realTasks.forEach(t => {
-      const dur = countWorkdaysBetween(t.start, t.end);
-      totalDur += dur;
-      weightedActual += dur * (t.progress || 0);
-      weightedPlanned += dur * pctAt(today, parseDate(t.targetStart || t.start), parseDate(t.targetEnd || t.end));
+      const w = getTaskWeight(t);
+      totalWeight += w;
+      weightedActual += w * (t.progress || 0);
+      weightedPlanned += w * pctAt(today, parseDate(t.targetStart || t.start), parseDate(t.targetEnd || t.end));
     });
-    const overallPct = totalDur > 0 ? Math.round(weightedActual / totalDur) : 0;
-    const plannedPct = totalDur > 0 ? Math.round(weightedPlanned / totalDur) : 0;
+    const overallPct = totalWeight > 0 ? Math.round(weightedActual / totalWeight) : 0;
+    const plannedPct = totalWeight > 0 ? Math.round(weightedPlanned / totalWeight) : 0;
     const svPct = overallPct - plannedPct;
 
     // Status breakdown (3-bucket summary for the WBS Execution tile, matching the mockup)
@@ -3061,24 +3328,32 @@
     const bounds = autoTimeBounds();
     const chartW = 900, chartH = 200, padTop = 10, padBottom = 24, plotH = chartH - padTop - padBottom;
     const totalDaysChart = Math.max(1, diffDays(bounds.min, bounds.max));
-    let totalWorkdaysSum = 0;
-    realTasks.forEach(t => { totalWorkdaysSum += countWorkdaysBetween(t.start, t.end); });
-    if(totalWorkdaysSum <= 0) totalWorkdaysSum = 1;
+    let totalWeightSum = 0;
+    realTasks.forEach(t => { totalWeightSum += getTaskWeight(t); });
+    if(totalWeightSum <= 0) totalWeightSum = 1;
     const xAt = i => (i / totalDaysChart) * chartW;
     const yAt = pct => padTop + plotH - (pct / 100 * plotH);
-    let plannedPts = [], actualPts = [];
+    let plannedPts = [], actualPts = [], envUpperPts = [], envLowerPts = [];
     for(let i = 0; i <= totalDaysChart; i += Math.max(1, Math.floor(totalDaysChart / 200))){
       const d = addDays(bounds.min, i);
       let sumP = 0, sumA = 0;
       realTasks.forEach(t => {
-        const weight = countWorkdaysBetween(t.start, t.end) / totalWorkdaysSum;
+        const weight = getTaskWeight(t) / totalWeightSum;
         sumP += weight * pctAt(d, parseDate(t.targetStart || t.start), parseDate(t.targetEnd || t.end));
         sumA += weight * pctAt(d, parseDate(t.start), parseDate(t.end));
       });
       plannedPts.push(`${xAt(i).toFixed(1)},${yAt(sumP).toFixed(1)}`);
       actualPts.push(`${xAt(i).toFixed(1)},${yAt(sumA).toFixed(1)}`);
+      if(systemConfig.scurveConfidencePct > 0){
+        envUpperPts.push(`${xAt(i).toFixed(1)},${yAt(Math.min(100, sumP + systemConfig.scurveConfidencePct)).toFixed(1)}`);
+        envLowerPts.push(`${xAt(i).toFixed(1)},${yAt(Math.max(0, sumP - systemConfig.scurveConfidencePct)).toFixed(1)}`);
+      }
     }
     const areaFillPoints = `0,${chartH} ${actualPts.join(' ')} ${chartW},${chartH}`;
+    const envelopeSvg = systemConfig.scurveConfidencePct > 0
+      ? `<polyline points="${envUpperPts.join(' ')}" fill="none" stroke="var(--dt-scurve-planned)" stroke-width="1" stroke-dasharray="2,3" opacity="0.5"/>
+         <polyline points="${envLowerPts.join(' ')}" fill="none" stroke="var(--dt-scurve-planned)" stroke-width="1" stroke-dasharray="2,3" opacity="0.5"/>`
+      : '';
     const scurveGrid = [0, 25, 50, 75, 100].map(p => {
       const y = yAt(p);
       return `<line x1="0" y1="${y}" x2="${chartW}" y2="${y}" stroke="var(--dt-border-subtle)" stroke-width="1"/><text x="4" y="${y - 3}" font-size="9" fill="var(--dt-text-muted)" font-family="monospace">${p}%</text>`;
@@ -3205,15 +3480,20 @@
             <polygon points="${areaFillPoints}" fill="url(#dashAreaFill)"/>
             <polyline points="${plannedPts.join(' ')}" fill="none" stroke="var(--dt-scurve-planned)" stroke-width="2" stroke-dasharray="5,4"/>
             <polyline points="${actualPts.join(' ')}" fill="none" stroke="var(--dt-scurve-actual)" stroke-width="2.5"/>
+            ${envelopeSvg}
             ${milestoneDotsSvg}
             ${todayMarkersSvg}
           </svg>
           <div class="dash-evm-row">
-            <div class="dash-evm-stat"><div class="dash-evm-stat-label">Earned Value (EV)</div><div class="dash-evm-stat-value">฿${Math.round(evm.EV).toLocaleString()}</div></div>
-            <div class="dash-evm-stat"><div class="dash-evm-stat-label">Planned Value (PV)</div><div class="dash-evm-stat-value">฿${Math.round(evm.PV).toLocaleString()}</div></div>
+            <div class="dash-evm-stat"><div class="dash-evm-stat-label">Earned Value (EV)</div><div class="dash-evm-stat-value">${curSym}${Math.round(evm.EV).toLocaleString()}</div></div>
+            <div class="dash-evm-stat">
+              <div class="dash-evm-stat-label">Planned Value (PV)</div>
+              <div class="dash-evm-stat-value">${curSym}${Math.round(evm.PV).toLocaleString()}</div>
+              ${officialBaselineName ? `<div class="dash-evm-stat-sub">Target Baseline: ${escapeHtml(officialBaselineName)}</div>` : ''}
+            </div>
             <div class="dash-evm-stat">
               <div class="dash-evm-stat-label">Schedule Variance (SV)</div>
-              <div class="dash-evm-stat-value" style="color:${svChangeColor}">฿${Math.round(svDollar).toLocaleString()}</div>
+              <div class="dash-evm-stat-value" style="color:${svChangeColor}">${curSym}${Math.round(svDollar).toLocaleString()}</div>
               <div class="dash-evm-stat-sub">${svPct >= 0 ? 'On/Ahead' : `Delay: ~${Math.abs(svPct)}% Progress`}</div>
             </div>
             <div class="dash-evm-stat">
@@ -3484,6 +3764,7 @@
     document.getElementById('modalAttachment').value = t.attachment || '';
     document.getElementById('modalBudgetCost').value = t.budgetCost || 0;
     document.getElementById('modalActualCost').value = t.actualCost || 0;
+    document.getElementById('modalManHours').value = t.manHours || 0;
 
     updateModalDateFieldsUI(itemType);
     document.getElementById('taskModal').classList.add('open');
@@ -3587,6 +3868,7 @@
     t.attachment = document.getElementById('modalAttachment').value;
     t.budgetCost = Math.max(0, parseFloat(document.getElementById('modalBudgetCost').value) || 0);
     t.actualCost = Math.max(0, parseFloat(document.getElementById('modalActualCost').value) || 0);
+    t.manHours = Math.max(0, parseFloat(document.getElementById('modalManHours').value) || 0);
     t.parentId = newParentId ? Number(newParentId) : null;
     t.deps = modalDepsState;
 
@@ -3678,6 +3960,156 @@
     saveToStorage();
     if(currentView === 'dashboard') renderDashboard();
   });
+
+  // --- SYSTEM & PROJECT CONFIGURATION MODAL CONTROLLER ---
+  function switchConfigTab(tabName){
+    document.querySelectorAll('#configTabsRow .tab-btn[data-tab]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === tabName);
+    });
+    document.querySelectorAll('#configModal .tab-content').forEach(content => {
+      content.classList.toggle('active', content.id === 'tabConfig' + tabName.charAt(0).toUpperCase() + tabName.slice(1));
+    });
+  }
+  document.querySelectorAll('#configTabsRow .tab-btn[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => switchConfigTab(btn.dataset.tab));
+  });
+
+  function setSegmentedValue(groupId, value){
+    document.getElementById(groupId).querySelectorAll('.config-segmented-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.value === value);
+    });
+  }
+  function getSegmentedValue(groupId){
+    const active = document.querySelector(`#${groupId} .config-segmented-btn.active`);
+    return active ? active.dataset.value : null;
+  }
+  ['cfgWeightMethodGroup', 'cfgFloatThresholdGroup', 'cfgLagModeGroup'].forEach(groupId => {
+    document.getElementById(groupId).querySelectorAll('.config-segmented-btn').forEach(btn => {
+      btn.addEventListener('click', () => setSegmentedValue(groupId, btn.dataset.value));
+    });
+  });
+
+  document.getElementById('cfgConfidenceEnabled').addEventListener('change', e => {
+    document.getElementById('cfgConfidencePctGroup').style.display = e.target.checked ? '' : 'none';
+  });
+
+  function openConfigModal(){
+    document.getElementById('cfgProjectName').value = document.getElementById('projectNameInput').value;
+    document.getElementById('cfgPlantFacility').value = systemConfig.plantFacility;
+    document.getElementById('cfgOutageCode').value = systemConfig.outageCode;
+    document.getElementById('cfgTargetColdRun').value = systemConfig.targetColdRunDate;
+    document.getElementById('cfgGridSyncCOD').value = systemConfig.gridSyncCOD;
+
+    const realTasks = tasks.filter(t => !t.hidden && t.type !== 'mark' && t.type !== 'highlight' && t.start && t.end);
+    if(realTasks.length){
+      const minS = realTasks.reduce((m, t) => { const d = parseDate(t.start); return (!m || d < m) ? d : m; }, null);
+      const maxE = realTasks.reduce((m, t) => { const d = parseDate(t.end); return (!m || d > m) ? d : m; }, null);
+      const days = countWorkdaysBetween(fmtDate(minS), fmtDate(maxE));
+      document.getElementById('cfgPlannedDuration').textContent = `${fmtDate(minS)} — ${fmtDate(maxE)} (${days} วันทำงาน)`;
+    } else {
+      document.getElementById('cfgPlannedDuration').textContent = '-';
+    }
+
+    setSegmentedValue('cfgWeightMethodGroup', systemConfig.progressWeightMethod);
+    setSegmentedValue('cfgFloatThresholdGroup', String(systemConfig.cpmFloatThreshold));
+    setSegmentedValue('cfgLagModeGroup', systemConfig.dependencyLagMode);
+
+    const baselineSelect = document.getElementById('cfgOfficialBaseline');
+    baselineSelect.innerHTML = '<option value="">— ไม่ระบุ —</option>' +
+      baselineHistory.map(h => `<option value="${h.id}">${escapeHtml(h.label)}</option>`).join('');
+    baselineSelect.value = systemConfig.officialBaselineId || '';
+
+    document.getElementById('cfgCurrencyUnit').value = systemConfig.currencyUnit;
+    document.getElementById('cfgConfidenceEnabled').checked = systemConfig.scurveConfidencePct > 0;
+    document.getElementById('cfgConfidencePct').value = systemConfig.scurveConfidencePct || 5;
+    document.getElementById('cfgConfidencePctGroup').style.display = systemConfig.scurveConfidencePct > 0 ? '' : 'none';
+    document.getElementById('cfgDateStrategy').value = systemConfig.dateStrategy;
+    document.getElementById('cfgInstantRecalc').checked = systemConfig.instantRecalc;
+
+    document.getElementById('cfgFirebaseProjectId').textContent = window.__fbProjectId || '-';
+    document.getElementById('cfgFirestoreScope').textContent = `plans/${(window.__fbUser && window.__fbUser.uid) || '(ยังไม่ได้ล็อกอิน)'}`;
+    const edgeCount = tasks.reduce((s, t) => s + (t.deps || []).length, 0);
+    document.getElementById('cfgLocalStorageInfo').textContent = `${tasks.length} Tasks • ${edgeCount} Dependency Edges`;
+    document.getElementById('cfgAutoSnapshotEnabled').checked = systemConfig.autoSnapshotEnabled;
+    document.getElementById('cfgAutoSnapshotInterval').value = systemConfig.autoSnapshotIntervalMin;
+    document.getElementById('cfgChecksumResult').style.display = 'none';
+
+    document.getElementById('cfgCurrentUser').textContent = (window.__fbUser)
+      ? `${window.__fbUser.name} <${window.__fbUser.email}> — ${window.__fbStatus}`
+      : 'ยังไม่ได้ล็อกอิน (Signed out)';
+
+    switchConfigTab('info');
+    document.getElementById('configModal').classList.add('open');
+  }
+
+  function applyAutoSnapshotTimer(){
+    if(autoSnapshotTimer){ clearInterval(autoSnapshotTimer); autoSnapshotTimer = null; }
+    if(systemConfig.autoSnapshotEnabled && systemConfig.autoSnapshotIntervalMin > 0){
+      autoSnapshotTimer = setInterval(() => {
+        captureBaselineSnapshot('Auto ' + new Date().toLocaleString('th-TH'));
+        if(document.getElementById('historyModal').classList.contains('open')) renderHistoryModal();
+      }, systemConfig.autoSnapshotIntervalMin * 60 * 1000);
+    }
+  }
+
+  document.getElementById('btnSaveConfig').addEventListener('click', () => {
+    document.getElementById('projectNameInput').value = document.getElementById('cfgProjectName').value;
+    systemConfig.plantFacility = document.getElementById('cfgPlantFacility').value;
+    systemConfig.outageCode = document.getElementById('cfgOutageCode').value;
+    systemConfig.targetColdRunDate = document.getElementById('cfgTargetColdRun').value;
+    systemConfig.gridSyncCOD = document.getElementById('cfgGridSyncCOD').value;
+
+    systemConfig.progressWeightMethod = getSegmentedValue('cfgWeightMethodGroup') || 'duration';
+    systemConfig.officialBaselineId = document.getElementById('cfgOfficialBaseline').value
+      ? Number(document.getElementById('cfgOfficialBaseline').value) : null;
+    systemConfig.currencyUnit = document.getElementById('cfgCurrencyUnit').value;
+    systemConfig.scurveConfidencePct = document.getElementById('cfgConfidenceEnabled').checked
+      ? Math.max(1, parseInt(document.getElementById('cfgConfidencePct').value, 10) || 5) : 0;
+    systemConfig.cpmFloatThreshold = Number(getSegmentedValue('cfgFloatThresholdGroup') || 0);
+    systemConfig.dateStrategy = document.getElementById('cfgDateStrategy').value;
+    systemConfig.dependencyLagMode = getSegmentedValue('cfgLagModeGroup') || 'workdays';
+    systemConfig.instantRecalc = document.getElementById('cfgInstantRecalc').checked;
+    systemConfig.autoSnapshotEnabled = document.getElementById('cfgAutoSnapshotEnabled').checked;
+    systemConfig.autoSnapshotIntervalMin = Math.max(1, parseInt(document.getElementById('cfgAutoSnapshotInterval').value, 10) || 30);
+
+    applyAutoSnapshotTimer();
+    cachedCP = null;
+    document.getElementById('configModal').classList.remove('open');
+    render();
+    if(currentView === 'dashboard') renderDashboard();
+  });
+
+  document.getElementById('btnRecalcCPM').addEventListener('click', recalculateCPMNow);
+
+  document.getElementById('btnClearCache').addEventListener('click', () => {
+    if(confirm('ล้างแคช LocalStorage ของแผนงานนี้และรีโหลดหน้าเว็บหรือไม่? (ข้อมูลบน Cloud จะไม่หาย ถ้า sync ไว้แล้ว)')){
+      localStorage.removeItem(STORAGE_KEY_V6);
+      location.reload();
+    }
+  });
+
+  document.getElementById('btnBackupJSON').addEventListener('click', () => {
+    const payload = buildStoragePayload();
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = "gantt-plan-v6-backup.json"; a.click();
+  });
+
+  document.getElementById('btnVerifyChecksum').addEventListener('click', async () => {
+    const payload = buildStoragePayload();
+    const data = new TextEncoder().encode(JSON.stringify(payload));
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+    const resultEl = document.getElementById('cfgChecksumResult');
+    resultEl.textContent = 'SHA-256: ' + hex;
+    resultEl.style.display = '';
+  });
+
+  document.getElementById('btnConfigSignOut').addEventListener('click', () => {
+    if(window.__fbSignOut) window.__fbSignOut();
+    document.getElementById('configModal').classList.remove('open');
+  });
+
 
   // --- MARKS & HIGHLIGHTS BULK MODAL CONTROLLER WITH HIDE TOGGLE ---
   function renderMHModal(){
@@ -3945,7 +4377,7 @@
   });
 
   document.getElementById('menuExportJSON').addEventListener('click', () => {
-    const payload = { projectName: document.getElementById('projectNameInput').value, tasks, baselineHistory, workingCalendar, timescaleTiers };
+    const payload = buildStoragePayload();
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = "gantt-plan-v6.json"; a.click();
@@ -3953,10 +4385,10 @@
   });
 
   document.getElementById('menuExportCSV').addEventListener('click', () => {
-    const headers = ['id','name','type','status','start','end','progress','owner','team','priority','criticalOverride','calendarLabel','attachment','budgetCost','actualCost'];
+    const headers = ['id','name','type','status','start','end','progress','owner','team','priority','criticalOverride','calendarLabel','attachment','budgetCost','actualCost','manHours'];
     const rows = [headers.join(',')];
     tasks.forEach(t => {
-      rows.push([t.id, `"${t.name}"`, t.type, t.status, t.start, t.end, t.progress, `"${t.owner||''}"`, `"${t.team||''}"`, `"${t.priority||''}"`, !!t.criticalOverride, `"${t.calendarLabel||''}"`, `"${t.attachment||''}"`, t.budgetCost||0, t.actualCost||0].join(','));
+      rows.push([t.id, `"${t.name}"`, t.type, t.status, t.start, t.end, t.progress, `"${t.owner||''}"`, `"${t.team||''}"`, `"${t.priority||''}"`, !!t.criticalOverride, `"${t.calendarLabel||''}"`, `"${t.attachment||''}"`, t.budgetCost||0, t.actualCost||0, t.manHours||0].join(','));
     });
     const csvContent = '\uFEFF' + rows.join('\r\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -4098,7 +4530,7 @@
     loginOverlayEl.classList.remove('open');
     if(menuUserInfoEl) menuUserInfoEl.textContent = `👤 ${user.name || user.email || 'Signed in'}`;
     const gotCloudData = await loadFromCloud();
-    if(gotCloudData) render();
+    if(gotCloudData){ render(); applyAutoSnapshotTimer(); }
   };
 
   window.__onSignedOut = function(){
@@ -4115,6 +4547,7 @@
   loadFromStorage();
   updateToggleBtnStyles();
   render();
+  applyAutoSnapshotTimer();
 })();
 </script>
 </body>

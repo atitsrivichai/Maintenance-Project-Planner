@@ -2197,8 +2197,8 @@
       const rowY = document.createElement('div');
       rowY.className = 'timeline-scale-row';
       rowY.style.width = totalWidth + "px";
-      rowY.style.background = '#EAECEE';
-      rowY.style.color = '#2C3E50';
+      rowY.style.background = 'var(--dt-surface-card)';
+      rowY.style.color = 'var(--dt-text-primary)';
 
       let cur = new Date(min);
       while(cur < max){
@@ -2225,8 +2225,8 @@
       const rowQ = document.createElement('div');
       rowQ.className = 'timeline-scale-row';
       rowQ.style.width = totalWidth + "px";
-      rowQ.style.background = '#F2F4F4';
-      rowQ.style.color = '#34495E';
+      rowQ.style.background = 'var(--dt-surface-hover)';
+      rowQ.style.color = 'var(--dt-text-primary)';
 
       let cur = new Date(min);
       while(cur < max){
@@ -2311,7 +2311,7 @@
         cell.className = 'scale-cell';
         cell.style.width = dayWidth + "px";
         cell.textContent = d.getDate();
-        if(!isWorkday(d)) cell.style.background = '#F2F4F4';
+        if(!isWorkday(d)) cell.style.background = 'var(--dt-surface-hover)';
         rowD.appendChild(cell);
       }
       headerSticky.appendChild(rowD);

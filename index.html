@@ -325,17 +325,7 @@
   .dash-tile-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 10.5px; color: var(--dt-text-muted); }
   .dash-tile-footer .warn { color: var(--dt-warning-amber); }
   .dash-tile-footer .crit { color: var(--dt-critical-path); }
-  .dash-tile-sub { font-size: 11px; color: var(--dt-text-muted); margin-top: 4px; line-height: 1.4; padding-bottom: 3px; border-bottom: 2px solid transparent; display: inline-block; }
-  .dash-tile-sub.underline-red { border-bottom-color: var(--dt-critical-path); }
-  .dash-tile-sub.underline-green { border-bottom-color: var(--dt-scurve-actual); }
-  .dash-tile-icon {
-    position: absolute; top: -8px; right: -8px; width: 32px; height: 32px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0;
-    border: 3px solid var(--dt-surface-panel);
-  }
-  .dash-tile-icon.red { background: var(--dt-critical-path); color: #fff; }
-  .dash-tile-icon.green { background: var(--dt-scurve-actual); color: #04281D; }
-  .dash-tile-icon.purple { background: var(--dt-baseline-purple); color: #fff; }
+  .dash-tile-sub { font-size: 11px; color: var(--dt-text-muted); margin-top: 4px; line-height: 1.4; }
   .dash-tile-footer .ok { color: var(--dt-scurve-actual); }
   .dash-chip { font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px; white-space: nowrap; letter-spacing: 0.3px; }
   .dash-chip-red { background: var(--dt-critical-path); color: #FFF; }
@@ -3616,7 +3606,7 @@
       const slipColor = slipDays > 0 ? 'var(--dt-critical-path)' : (slipDays < 0 ? 'var(--dt-scurve-actual)' : 'var(--dt-text-primary)');
       slippageHtml = `
         <div class="dash-tile-value-row"><span class="dash-tile-value" style="color:${slipColor}">${slipDays >= 0 ? '+' : ''}${slipDays}</span><span class="dash-tile-value-trail">Days TF Deficit</span></div>
-        <div class="dash-tile-sub underline-red">Critical Path Pushed: ${baselineFinishStr} → ${cp.projectEndStr}</div>`;
+        <div class="dash-tile-sub" style="color:var(--dt-critical-path);">Critical Path Pushed: ${baselineFinishStr} → ${cp.projectEndStr}</div>`;
     } else {
       slippageHtml = `<div class="dash-tile-value">-</div><div class="dash-tile-sub">ยังไม่ได้ตั้ง Official Baseline (Config &gt; CPM Engine)</div>`;
     }
@@ -3758,21 +3748,33 @@
     container.innerHTML = `
       <div class="dash-grid">
         <div class="dash-tile">
-          <div class="dash-tile-label"><span>Baseline Slippage Impact</span><span class="dash-tile-icon red">⚡</span></div>
+          <div class="dash-tile-label"><span>Baseline Slippage Impact</span></div>
           ${slippageHtml}
         </div>
         <div class="dash-tile">
-          <div class="dash-tile-label"><span>Active Milestones Tracked</span><span class="dash-tile-icon green">✓</span></div>
-          <div class="dash-tile-value-row"><span class="dash-tile-value">${trackedCount}/${milestones.length}</span><span class="dash-tile-value-trail">Milestones</span></div>
-          <div class="dash-tile-sub underline-green">${early} Early • ${onTime} On-Time • ${delayed} Delayed</div>
+          <div class="dash-tile-label"><span>Active Milestones Tracked</span></div>
+          <div class="dash-tile-value-row"><span class="dash-tile-value" style="color:var(--dt-scurve-actual);">${trackedCount}/${milestones.length}</span><span class="dash-tile-value-trail">Milestones</span></div>
+          <div class="dash-tile-sub">${early} Early • ${onTime} On-Time • ${delayed} Delayed</div>
         </div>
         <div class="dash-tile">
-          <div class="dash-tile-label"><span>Active Comparison Target</span><span class="dash-tile-icon purple">🔖</span></div>
+          <div class="dash-tile-label"><span>Active Comparison Target</span></div>
           ${activeTargetHtml}
         </div>
       </div>
 
       ${varianceHtml}
+
+      <div class="dash-section">
+        <div class="dash-section-header-row">
+          <div>
+            <div class="dash-section-title">📈 Gantt Overlay Analysis: Current Schedule vs Baseline</div>
+            <div class="dash-section-subtitle">${officialBaseline ? `Comparing against: ${escapeHtml(officialBaseline.label)}` : ''}</div>
+          </div>
+        </div>
+        ${overlayLegendHtml}
+        ${overlayHasRows ? '<div class="overlay-row-head"><span>WBS & Work Package</span><span>Dur</span><span>Timeline</span></div>' : ''}
+        ${overlayHtml}
+      </div>
 
       <div class="baseline-two-col">
         <div class="dash-section">
@@ -3805,18 +3807,6 @@
           <div class="dash-section-title" style="font-size:11px;">Recent Snapshot Commits</div>
           <div class="dash-list">${recentCommitsHtml}</div>
         </div>
-      </div>
-
-      <div class="dash-section">
-        <div class="dash-section-header-row">
-          <div>
-            <div class="dash-section-title">📈 Gantt Overlay Analysis: Current Schedule vs Baseline</div>
-            <div class="dash-section-subtitle">${officialBaseline ? `Comparing against: ${escapeHtml(officialBaseline.label)}` : ''}</div>
-          </div>
-        </div>
-        ${overlayLegendHtml}
-        ${overlayHasRows ? '<div class="overlay-row-head"><span>WBS & Work Package</span><span>Dur</span><span>Timeline</span></div>' : ''}
-        ${overlayHtml}
       </div>
     `;
 

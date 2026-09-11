@@ -325,7 +325,16 @@
   .dash-tile-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 10.5px; color: var(--dt-text-muted); }
   .dash-tile-footer .warn { color: var(--dt-warning-amber); }
   .dash-tile-footer .crit { color: var(--dt-critical-path); }
-  .dash-tile-sub { font-size: 11px; color: var(--dt-text-muted); margin-top: 4px; line-height: 1.4; }
+  .dash-tile-sub { font-size: 11px; color: var(--dt-text-muted); margin-top: 4px; line-height: 1.4; padding-bottom: 3px; border-bottom: 2px solid transparent; display: inline-block; }
+  .dash-tile-sub.underline-red { border-bottom-color: var(--dt-critical-path); }
+  .dash-tile-sub.underline-green { border-bottom-color: var(--dt-scurve-actual); }
+  .dash-tile-icon {
+    width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; flex-shrink: 0;
+  }
+  .dash-tile-icon.red { background: var(--dt-critical-path); color: #fff; }
+  .dash-tile-icon.green { background: var(--dt-scurve-actual); color: #04281D; }
+  .dash-tile-icon.purple { background: var(--dt-baseline-purple); color: #fff; }
   .dash-tile-footer .ok { color: var(--dt-scurve-actual); }
   .dash-chip { font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px; white-space: nowrap; letter-spacing: 0.3px; }
   .dash-chip-red { background: var(--dt-critical-path); color: #FFF; }
@@ -347,6 +356,8 @@
   .dash-list { display: flex; flex-direction: column; gap: 8px; }
   .dash-list-empty { font-size: 12px; color: var(--dt-text-muted); text-align: center; padding: 14px; font-family: var(--font-sans); }
   .dash-two-col { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; align-items: start; }
+  .baseline-two-col { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 900px) { .baseline-two-col { grid-template-columns: 1fr; } }
   .dash-risk-item {
     padding: 10px 12px; margin-bottom: 8px; background: var(--dt-surface-base);
     border-left: 3px solid var(--dt-critical-path); border-radius: 4px; font-size: 12px;
@@ -3602,7 +3613,7 @@
       const slipColor = slipDays > 0 ? 'var(--dt-critical-path)' : (slipDays < 0 ? 'var(--dt-scurve-actual)' : 'var(--dt-text-primary)');
       slippageHtml = `
         <div class="dash-tile-value-row"><span class="dash-tile-value" style="color:${slipColor}">${slipDays >= 0 ? '+' : ''}${slipDays}</span><span class="dash-tile-value-trail">Days TF Deficit</span></div>
-        <div class="dash-tile-sub">Critical Path Pushed: ${baselineFinishStr} → ${cp.projectEndStr}</div>`;
+        <div class="dash-tile-sub underline-red">Critical Path Pushed: ${baselineFinishStr} → ${cp.projectEndStr}</div>`;
     } else {
       slippageHtml = `<div class="dash-tile-value">-</div><div class="dash-tile-sub">ยังไม่ได้ตั้ง Official Baseline (Config &gt; CPM Engine)</div>`;
     }
@@ -3738,37 +3749,31 @@
 
     container.innerHTML = `
       <div class="dash-grid">
-        <div class="dash-tile"><div class="dash-tile-label"><span>Baseline Slippage Impact</span></div>${slippageHtml}</div>
         <div class="dash-tile">
-          <div class="dash-tile-label"><span>Active Milestones Tracked</span></div>
-          <div class="dash-tile-value-row"><span class="dash-tile-value">${trackedCount}/${milestones.length}</span><span class="dash-tile-value-trail">Milestones</span></div>
-          <div class="dash-tile-sub">${early} Early • ${onTime} On-Time • ${delayed} Delayed</div>
+          <div class="dash-tile-label"><span>Baseline Slippage Impact</span><span class="dash-tile-icon red">⚡</span></div>
+          ${slippageHtml}
         </div>
-        <div class="dash-tile"><div class="dash-tile-label"><span>Active Comparison Target</span></div>${activeTargetHtml}</div>
+        <div class="dash-tile">
+          <div class="dash-tile-label"><span>Active Milestones Tracked</span><span class="dash-tile-icon green">✓</span></div>
+          <div class="dash-tile-value-row"><span class="dash-tile-value">${trackedCount}/${milestones.length}</span><span class="dash-tile-value-trail">Milestones</span></div>
+          <div class="dash-tile-sub underline-green">${early} Early • ${onTime} On-Time • ${delayed} Delayed</div>
+        </div>
+        <div class="dash-tile">
+          <div class="dash-tile-label"><span>Active Comparison Target</span><span class="dash-tile-icon purple">🔖</span></div>
+          ${activeTargetHtml}
+        </div>
       </div>
 
       ${varianceHtml}
 
-      <div class="dash-section">
-        <div class="dash-section-header-row">
-          <div class="dash-section-title">🗄️ Baseline Version Vault (คลังบันทึกประวัติ)</div>
-          <button type="button" class="btn-modal primary" id="btnSaveBaselineVault" style="padding:6px 12px; font-size:12px;">+ Save Baseline Version</button>
-        </div>
-        <div class="vault-row-head"><span>Version / Revision</span><span>Timestamp</span><span>Author</span><span>State</span><span style="text-align:right;">Actions</span></div>
-        ${vaultRowsHtml}
-      </div>
-
-      <div class="dash-two-col">
+      <div class="baseline-two-col">
         <div class="dash-section">
           <div class="dash-section-header-row">
-            <div>
-              <div class="dash-section-title">📈 Gantt Overlay Analysis: Current Schedule vs Baseline</div>
-              <div class="dash-section-subtitle">${officialBaseline ? `Comparing against: ${escapeHtml(officialBaseline.label)}` : ''}</div>
-            </div>
+            <div class="dash-section-title">🗄️ Baseline Version Vault (คลังบันทึกประวัติ)</div>
+            <button type="button" class="btn-modal primary" id="btnSaveBaselineVault" style="padding:6px 12px; font-size:12px;">+ Save Baseline Version</button>
           </div>
-          ${overlayLegendHtml}
-          ${overlayHasRows ? '<div class="overlay-row-head"><span>WBS & Work Package</span><span>Dur</span><span>Timeline</span></div>' : ''}
-          ${overlayHtml}
+          <div class="vault-row-head"><span>Version / Revision</span><span>Timestamp</span><span>Author</span><span>State</span><span style="text-align:right;">Actions</span></div>
+          ${vaultRowsHtml}
         </div>
         <div class="dash-section">
           <div class="dash-section-title">☁️ Cloud Sync & Audit Trail</div>
@@ -3792,6 +3797,18 @@
           <div class="dash-section-title" style="font-size:11px;">Recent Snapshot Commits</div>
           <div class="dash-list">${recentCommitsHtml}</div>
         </div>
+      </div>
+
+      <div class="dash-section">
+        <div class="dash-section-header-row">
+          <div>
+            <div class="dash-section-title">📈 Gantt Overlay Analysis: Current Schedule vs Baseline</div>
+            <div class="dash-section-subtitle">${officialBaseline ? `Comparing against: ${escapeHtml(officialBaseline.label)}` : ''}</div>
+          </div>
+        </div>
+        ${overlayLegendHtml}
+        ${overlayHasRows ? '<div class="overlay-row-head"><span>WBS & Work Package</span><span>Dur</span><span>Timeline</span></div>' : ''}
+        ${overlayHtml}
       </div>
     `;
 

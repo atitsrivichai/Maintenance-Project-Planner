@@ -396,7 +396,7 @@
 
   /* Main Split View */
   .main-split {
-    display: grid; grid-template-columns: 52px 390px 1fr; grid-template-rows: 1fr auto;
+    display: grid; grid-template-columns: 52px 430px 1fr; grid-template-rows: 1fr auto;
     flex: 1; overflow: hidden; position: relative;
   }
 
@@ -409,15 +409,19 @@
   }
   .sidebar-header {
     height: 42px; background: var(--dt-surface-base); border-bottom: 1px solid var(--dt-border-subtle);
-    display: flex; align-items: center; justify-content: space-between; padding: 0 12px;
+    display: flex; align-items: center; padding: 0 6px; position: relative;
     font-size: 11px; font-weight: 700; color: var(--dt-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;
+    overflow-y: auto; scrollbar-gutter: stable;
   }
-  .task-tree-container { flex: 1; overflow-y: auto; overflow-x: hidden; }
+  .sidebar-header-cols { display: flex; align-items: center; flex: 1; min-width: 0; gap: 0; }
+  .col-label { font-size: 9.5px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .col-label.col-name { flex: 1; min-width: 0; padding-left: 76px; }
+  .task-tree-container { flex: 1; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; }
 
   .task-node {
     height: 38px; border-bottom: 1px solid var(--dt-border-subtle); display: flex; align-items: center;
     padding: 0 6px; font-size: 12.5px; background: var(--dt-surface-panel); color: var(--dt-text-primary);
-    transition: background 0.1s; user-select: none; position: relative;
+    transition: background 0.1s, opacity 0.15s; user-select: none; position: relative;
   }
   .task-node:hover { background: var(--dt-surface-hover); }
   .task-node.selected { background: rgba(37,99,235,0.18); }
@@ -425,6 +429,18 @@
   .task-node.drag-over-top { border-top: 2px solid var(--dt-primary); }
   .task-node.drag-over-bottom { border-bottom: 2px solid var(--dt-primary); }
   .task-node.drag-over-subtask { background: var(--dt-warning-amber-bg); outline: 2px dashed var(--dt-warning-amber); outline-offset: -2px; }
+  .task-node.cp-dimmed { opacity: 0.3; }
+
+  .node-wbs {
+    width: 34px; flex-shrink: 0; margin-right: 4px; font-family: var(--font-mono); font-size: 10px; color: var(--dt-text-muted);
+  }
+  .node-dur, .node-pct, .node-dep {
+    width: 32px; flex-shrink: 0; text-align: right; font-family: var(--font-mono); font-size: 10px;
+    color: var(--dt-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    margin-right: 8px; padding-right: 2px;
+  }
+  .node-pct { font-weight: 700; color: var(--dt-text-primary); }
+  .node-dep { width: 40px; margin-right: 0; color: var(--dt-scurve-planned); }
 
   .drag-handle {
     cursor: grab; color: var(--dt-text-muted); font-size: 13px; margin-right: 3px; padding: 2px; display: inline-flex; align-items: center;
@@ -450,7 +466,11 @@
   .type-mark { background: var(--dt-critical-path-bg); color: var(--dt-critical-path); }
   .type-highlight { background: #064E3B; color: var(--dt-scurve-actual); }
 
-  .node-actions { display: flex; align-items: center; gap: 2px; opacity: 0; transition: opacity 0.15s; }
+  .node-actions {
+    display: flex; align-items: center; gap: 2px; opacity: 0; transition: opacity 0.15s;
+    position: absolute; right: 4px; top: 0; bottom: 0;
+    background: linear-gradient(to right, transparent, var(--dt-surface-hover) 18px); padding-left: 18px;
+  }
   .task-node:hover .node-actions { opacity: 1; }
   .btn-node-opt {
     background: transparent; border: none; color: var(--dt-text-secondary); cursor: pointer; font-size: 12px; padding: 2px 4px; border-radius: 3px;
@@ -481,6 +501,16 @@
     padding: 7px 16px; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: space-between;
     z-index: 18; flex-shrink: 0; box-shadow: none;
   }
+  .cp-banner-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .cp-pill {
+    background: rgba(0,0,0,0.25); border: 1px solid var(--dt-critical-path); border-radius: 4px;
+    padding: 3px 8px; font-size: 10.5px; font-family: var(--font-mono); font-weight: 600; white-space: nowrap;
+  }
+  .btn-isolate-cp {
+    background: var(--dt-critical-path); border: 1px solid var(--dt-critical-path); color: #FFF;
+    border-radius: 4px; padding: 4px 9px; font-size: 10.5px; font-weight: 700; cursor: pointer; white-space: nowrap;
+  }
+  .btn-isolate-cp.active { background: #FFF; color: var(--dt-critical-path); }
 
   .timeline-body-area { position: relative; flex: 1; min-height: 100%; }
   .grid-bg-column { position: absolute; top: 0; bottom: 0; border-right: 1px solid var(--dt-grid-line); pointer-events: none; }
@@ -488,14 +518,15 @@
 
   /* Gantt Bars & Badges */
   .gantt-bar {
-    position: absolute; top: 6px; height: 26px; border-radius: 13px; background: var(--status-inprogress);
+    position: absolute; top: 6px; height: 26px; border-radius: 3px; background: var(--status-inprogress);
     box-shadow: 0 2px 4px rgba(0,0,0,0.12); display: flex; align-items: center; padding: 0 8px;
     cursor: grab; z-index: 7; transition: transform 0.1s, box-shadow 0.1s; user-select: none;
   }
   .gantt-bar:active { cursor: grabbing; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
   .gantt-bar:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.2); }
   .gantt-bar.critical { box-shadow: 0 0 0 2.5px var(--dt-critical-path), 0 3px 8px rgba(239,68,68,0.4) !important; }
-  .bar-progress-fill { position: absolute; top: 0; left: 0; bottom: 0; border-radius: 13px; background: rgba(0,0,0,0.18); pointer-events: none; }
+  .gantt-bar.cp-dimmed, .gantt-milestone.cp-dimmed { opacity: 0.25; }
+  .bar-progress-fill { position: absolute; top: 0; left: 0; bottom: 0; border-radius: 3px; background: rgba(0,0,0,0.18); pointer-events: none; }
   .bar-content {
     position: relative; z-index: 2; display: flex; align-items: center; gap: 6px; color: #FFF; font-size: 11px; font-weight: 600;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px rgba(0,0,0,0.3); width: 100%; pointer-events: none;
@@ -508,7 +539,7 @@
   /* Right Edge Resizer Handle for Gantt Bar */
   .bar-resize-handle {
     position: absolute; right: 0; top: 0; bottom: 0; width: 10px; cursor: e-resize;
-    border-top-right-radius: 13px; border-bottom-right-radius: 13px; background: rgba(255,255,255,0.25);
+    border-top-right-radius: 3px; border-bottom-right-radius: 3px; background: rgba(255,255,255,0.25);
     opacity: 0; transition: opacity 0.15s; z-index: 10;
   }
   .gantt-bar:hover .bar-resize-handle { opacity: 1; }
@@ -714,6 +745,7 @@
       <input type="text" id="projectNameInput" class="project-title-input" value="โครงการ Maintenance Audit Supplier" placeholder="พิมพ์ชื่อโครงการ...">
     </div>
     <div class="header-controls">
+      <button class="btn-header primary" id="btnAddTopTask" title="เพิ่ม Task ใหม่">+ Task</button>
       <button class="btn-header" id="btnOpenTimescale" title="เลือกชั้นแสดงผลไทม์สเกล (Years, Quarters, Months, Weeks, Days)">📅 Timescale Scale</button>
 
       <div class="zoom-group">
@@ -978,8 +1010,13 @@
     <!-- Left Sidebar: Task Tree -->
     <div class="task-sidebar" id="taskSidebar">
       <div class="sidebar-header" id="sidebarHeaderEl">
-        <span>Task Name (ลาก ⋮⋮ สลับ/ทำ Sub-task)</span>
-        <button class="btn-node-opt" id="btnAddTopTask" style="font-weight:bold; color:var(--amber-primary);" title="เพิ่ม Task ใหม่">+ Task</button>
+        <div class="sidebar-header-cols">
+          <span class="col-label" style="width:34px; margin-right:4px;">WBS</span>
+          <span class="col-label col-name" title="Task Name (ลาก ⋮⋮ สลับ/ทำ Sub-task)">TASK NAME</span>
+          <span class="col-label" style="width:32px; margin-right:8px; text-align:right;">Dur</span>
+          <span class="col-label" style="width:32px; margin-right:8px; text-align:right;">%</span>
+          <span class="col-label" style="width:40px; text-align:right;" title="Dep">Dep</span>
+        </div>
       </div>
       <div class="task-tree-container" id="taskTreeContainer"></div>
     </div>
@@ -1270,6 +1307,7 @@
   let activeEditingTaskId = null;
   let showCriticalPath = false;
   let showSCurve = false;
+  let isolateCPTasks = false;
   let compareVersionId = null;
 
   let viewMode = 'auto';
@@ -1584,6 +1622,23 @@
     return d;
   }
 
+  // WBS numbering (1.0, 1.1, 1.1.1, 2.0, ...) derived from the parentId tree,
+  // following the same sibling order the sidebar already renders in.
+  function computeWBSNumbers(){
+    const map = new Map();
+    function walk(parentId, prefix){
+      const children = tasks.filter(t => t.parentId === parentId);
+      children.forEach((t, i) => {
+        const idx = i + 1;
+        const code = (parentId == null) ? `${idx}.0` : `${prefix}.${idx}`;
+        map.set(t.id, code);
+        walk(t.id, (parentId == null) ? String(idx) : code);
+      });
+    }
+    walk(null, '');
+    return map;
+  }
+
   function applyRollups(){
     tasks.forEach(t => {
       if(hasChildren(t) && t.progressMode === 'auto'){
@@ -1598,7 +1653,7 @@
   // --- FULL CPM CRITICAL PATH ENGINE (FS, SS, FF, SF FULL LAG) ---
   function computeCriticalPath(){
     const validTasks = tasks.filter(t => !t.hidden && t.status !== 'cancelled' && t.type !== 'mark' && t.type !== 'highlight' && t.start && t.end);
-    if(!validTasks.length) return { criticalIds: new Set(), criticalEdges: new Set(), totalDays: 0, criticalCount: 0 };
+    if(!validTasks.length) return { criticalIds: new Set(), criticalEdges: new Set(), totalDays: 0, criticalCount: 0, minTotalFloat: 0, minFreeFloat: 0 };
 
     const taskMap = {};
     validTasks.forEach(t => {
@@ -1717,6 +1772,25 @@
       }
     });
 
+    // Free Float: how many workdays a task can slip without delaying its own immediate
+    // successor(s). Computed exactly for FS-type successors (the common case); a task with
+    // no FS successor falls back to its Total Float (slack against the project end) since
+    // there's no tighter, real successor constraint to measure against.
+    validTasks.forEach(t => {
+      const item = taskMap[t.id];
+      let ff = null;
+      validTasks.forEach(sTask => {
+        const sItem = taskMap[sTask.id];
+        sItem.deps.forEach(dep => {
+          if(dep.id === t.id && dep.type === 'FS'){
+            const gap = countWorkdaysBetween(item.EF, sItem.ES) - 1;
+            if(ff === null || gap < ff) ff = gap;
+          }
+        });
+      });
+      item.FF = Math.max(0, ff === null ? item.TF : ff);
+    });
+
     validTasks.forEach(t => {
       if(criticalIds.has(t.id)){
         const item = taskMap[t.id];
@@ -1729,8 +1803,14 @@
       }
     });
 
+    let minTotalFloat = 0, minFreeFloat = 0;
+    if(criticalIds.size){
+      minTotalFloat = Math.min(...Array.from(criticalIds).map(id => taskMap[id].TF));
+      minFreeFloat = Math.min(...Array.from(criticalIds).map(id => taskMap[id].FF));
+    }
+
     const totalDays = countWorkdaysBetween(minDateStr, projectEndStr);
-    return { criticalIds, criticalEdges, totalDays, criticalCount: criticalIds.size };
+    return { criticalIds, criticalEdges, totalDays, criticalCount: criticalIds.size, minTotalFloat, minFreeFloat };
   }
 
   // --- MAIN RENDERER ---
@@ -1751,13 +1831,18 @@
 
     // Filter out hidden tasks (t.hidden === true)
     const visibleTasks = tasks.filter(t => !t.hidden && !isCollapsedAncestor(t));
+    const wbsMap = computeWBSNumbers();
+    const cpForDim = (showCriticalPath && isolateCPTasks) ? computeCriticalPath() : null;
 
     visibleTasks.forEach((t, visibleIdx) => {
       const depth = taskDepth(t);
       const isParent = hasChildren(t);
+      const isDatedItem = (t.type !== 'mark' && t.type !== 'highlight');
+      const isMilestoneItem = (t.type === 'milestone' || t.milestone);
 
       const node = document.createElement('div');
-      node.className = 'task-node' + (activeEditingTaskId === t.id ? ' selected' : '');
+      const dimmed = cpForDim && !cpForDim.criticalIds.has(t.id);
+      node.className = 'task-node' + (activeEditingTaskId === t.id ? ' selected' : '') + (dimmed ? ' cp-dimmed' : '');
       node.dataset.id = t.id;
       node.setAttribute('draggable', 'true');
 
@@ -1768,12 +1853,21 @@
       const canIndent = visibleIdx > 0;
       const canOutdent = t.parentId != null;
 
+      const wbsCode = wbsMap.get(t.id) || '';
+      const durText = isDatedItem ? (isMilestoneItem ? '0' : String(countWorkdaysBetween(t.start, t.end))) : '–';
+      const pctText = isDatedItem ? `${t.progress || 0}%` : '–';
+      const depText = normalizeDeps(t.deps).map(d => `${wbsMap.get(d.id) || d.id}${d.type}`).join(',') || '–';
+
       node.innerHTML = `
+        <span class="node-wbs" title="WBS ${wbsCode}">${wbsCode}</span>
         <span class="drag-handle" title="คลิกลากสลับลำดับ หรือวางทับงานอื่นเพื่อทำเป็น Sub-task">⋮⋮</span>
         <span class="task-indent" style="width:${depth * 12}px"></span>
         <span class="toggle-tree" data-id="${t.id}">${isParent ? (t.collapsed ? '▸' : '▾') : '•'}</span>
-        <span class="tree-icon-status" style="background:${t.color || getStatusColor(t.status)}">${t.type === 'mark' ? '📍' : (t.type === 'highlight' ? '🎨' : getStatusIcon(t.status))}</span>
+        <span class="tree-icon-status" style="background:${getStatusColor(t.status)}">${t.type === 'mark' ? '📍' : (t.type === 'highlight' ? '🎨' : getStatusIcon(t.status))}</span>
         <span class="node-title" data-id="${t.id}" title="${escapeHtml(t.name)}">${escapeHtml(t.name)} ${typeTag}</span>
+        <span class="node-dur" title="ระยะเวลา (วันทำงาน)">${durText}</span>
+        <span class="node-pct" title="% ความคืบหน้า">${pctText}</span>
+        <span class="node-dep" title="Predecessor (WBS+ชนิด)">${depText}</span>
         <div class="node-actions">
           ${canIndent ? `<button class="btn-node-opt btn-indent" data-id="${t.id}" title="ทำเป็น Sub-task (Indent)">⇥</button>` : ''}
           ${canOutdent ? `<button class="btn-node-opt btn-outdent" data-id="${t.id}" title="ยกเลิกเป็น Main-task (Outdent)">⇤</button>` : ''}
@@ -2048,7 +2142,7 @@
     const visibleTasks = tasks.filter(t => !t.hidden && !isCollapsedAncestor(t));
     const totalHeight = visibleTasks.length * 38;
 
-    const cp = showCriticalPath ? computeCriticalPath() : { criticalIds: new Set(), criticalEdges: new Set(), totalDays: 0, criticalCount: 0 };
+    const cp = showCriticalPath ? computeCriticalPath() : { criticalIds: new Set(), criticalEdges: new Set(), totalDays: 0, criticalCount: 0, minTotalFloat: 0, minFreeFloat: 0 };
 
     // Update Critical Path Info Banner
     const cpBanner = document.getElementById('cpInfoBanner');
@@ -2058,7 +2152,16 @@
       cpBanner.style.display = 'flex';
       cpBanner.innerHTML = `
         <span>🎯 <b>Critical Path (CPM Full Lag):</b> ระยะเวลารวมเส้นทางวิกฤต <b style="font-size:13px; color:#FCA5A5;">${cp.totalDays} วัน</b> (${totalMonths} เดือน) — มี <b style="font-size:13px; color:#FCA5A5;">${cp.criticalCount} งานวิกฤต (Float = 0)</b></span>
+        <div class="cp-banner-right">
+          <span class="cp-pill">Total Float: ${cp.minTotalFloat.toFixed(1)} d</span>
+          <span class="cp-pill">Free Float: ${cp.minFreeFloat.toFixed(1)} d</span>
+          <button type="button" class="btn-isolate-cp${isolateCPTasks ? ' active' : ''}" id="btnIsolateCP">👁 Isolate CP Tasks</button>
+        </div>
       `;
+      document.getElementById('btnIsolateCP').addEventListener('click', () => {
+        isolateCPTasks = !isolateCPTasks;
+        renderTaskTree(); renderTimeline();
+      });
       cpBtn.classList.add('active');
     } else {
       cpBanner.style.display = 'none';
@@ -2096,8 +2199,8 @@
       const rowY = document.createElement('div');
       rowY.className = 'timeline-scale-row';
       rowY.style.width = totalWidth + "px";
-      rowY.style.background = '#EAECEE';
-      rowY.style.color = '#2C3E50';
+      rowY.style.background = 'var(--dt-surface-card)';
+      rowY.style.color = 'var(--dt-text-primary)';
 
       let cur = new Date(min);
       while(cur < max){
@@ -2124,8 +2227,8 @@
       const rowQ = document.createElement('div');
       rowQ.className = 'timeline-scale-row';
       rowQ.style.width = totalWidth + "px";
-      rowQ.style.background = '#F2F4F4';
-      rowQ.style.color = '#34495E';
+      rowQ.style.background = 'var(--dt-surface-hover)';
+      rowQ.style.color = 'var(--dt-text-primary)';
 
       let cur = new Date(min);
       while(cur < max){
@@ -2210,7 +2313,7 @@
         cell.className = 'scale-cell';
         cell.style.width = dayWidth + "px";
         cell.textContent = d.getDate();
-        if(!isWorkday(d)) cell.style.background = '#F2F4F4';
+        if(!isWorkday(d)) cell.style.background = 'var(--dt-surface-hover)';
         rowD.appendChild(cell);
       }
       headerSticky.appendChild(rowD);
@@ -2306,6 +2409,7 @@
       const s = parseDate(t.start), e = parseDate(t.end || t.start);
       const x = diffDays(min, s) * dayWidth;
       const isCritical = cp.criticalIds.has(t.id);
+      const isCpDimmed = showCriticalPath && isolateCPTasks && !isCritical;
 
       if(t.type === 'highlight' || t.type === 'mark') return; // Handled above
 
@@ -2334,10 +2438,10 @@
         posMap[t.id] = { x: cx, y: rowY + 19, isMilestone: true };
 
         const dia = document.createElement('div');
-        dia.className = 'gantt-milestone' + (isCritical ? ' critical' : '');
+        dia.className = 'gantt-milestone' + (isCritical ? ' critical' : '') + (isCpDimmed ? ' cp-dimmed' : '');
         dia.style.left = (cx - 10) + "px";
         dia.style.top = milestoneTop + "px";
-        dia.style.background = t.color || getStatusColor(t.status);
+        dia.style.background = getStatusColor(t.status);
         dia.title = `♦️ Milestone: ${t.name}\nวันที่กำหนด: ${t.start}\n[คลิกลากเพื่อย้ายวัน]`;
 
         dia.addEventListener('mousedown', ev => {
@@ -2384,19 +2488,20 @@
         posMap[t.id] = { x: x, w: w, y: rowY + 19, isMilestone: false };
 
         const bar = document.createElement('div');
-        bar.className = 'gantt-bar' + (isCritical ? ' critical' : '');
+        bar.className = 'gantt-bar' + (isCritical ? ' critical' : '') + (isCpDimmed ? ' cp-dimmed' : '');
         bar.style.left = x + "px";
         bar.style.top = barTop + "px";
         bar.style.height = barHeight + "px";
         bar.style.width = w + "px";
-        bar.style.background = t.color || getStatusColor(t.status);
+        bar.style.background = getStatusColor(t.status);
         bar.title = `${t.name} (${t.progress}%)\n${t.start} ถึง ${t.end}\n[คลิกลากเพื่อย้ายวัน / ลากขอบขวาเพื่อยืดหดจำนวนวัน]`;
 
+        const barLabel = (isCritical ? 'CRITICAL • ' : '') + `${escapeHtml(t.name)} (${t.progress}%)`;
         bar.innerHTML = `
           <div class="bar-progress-fill" style="width:${t.progress}%"></div>
           <div class="bar-content">
-            <span class="bar-state-icon" style="color:${t.color || getStatusColor(t.status)}">${getStatusIcon(t.status)}</span>
-            <span>${escapeHtml(t.name)} (${t.progress}%)</span>
+            <span class="bar-state-icon" style="color:${getStatusColor(t.status)}">${getStatusIcon(t.status)}</span>
+            <span>${barLabel}</span>
           </div>
           <div class="bar-resize-handle" title="ลากขอบขวาเพื่อยืด/หดวัน"></div>
         `;
@@ -2493,10 +2598,26 @@
         const path = document.createElementNS(svgNS, "path");
         path.setAttribute('d', `M ${startX} ${startY} H ${midX} V ${endY} H ${endX}`);
         path.setAttribute('fill', 'none');
-        path.setAttribute('stroke', isCriticalEdge ? '#E74C3C' : '#95A5A6');
+        path.setAttribute('stroke', isCriticalEdge ? '#EF4444' : '#64748B');
         path.setAttribute('stroke-width', isCriticalEdge ? '2.5' : '1.8');
         if(!isCriticalEdge) path.setAttribute('stroke-dasharray', '4,3');
         svgLayer.appendChild(path);
+
+        // Small date-range label near the elbow, only when there's enough horizontal room
+        // for it to be legible without overlapping the bars it connects.
+        const predTask = tasks.find(x => x.id === dep.id);
+        if(predTask && Math.abs(midX - startX) > 20 && Math.abs(endX - midX) > 20){
+          const shortDate = (dstr) => { const d = parseDate(dstr); return `${d.getDate()}/${d.getMonth() + 1}`; };
+          const depLabel = document.createElementNS(svgNS, "text");
+          depLabel.setAttribute('x', midX);
+          depLabel.setAttribute('y', startY - 4);
+          depLabel.setAttribute('text-anchor', 'middle');
+          depLabel.setAttribute('font-size', '8.5');
+          depLabel.setAttribute('font-family', 'monospace');
+          depLabel.setAttribute('fill', isCriticalEdge ? '#FCA5A5' : '#64748B');
+          depLabel.textContent = `${shortDate(predTask.start)}-${shortDate(predTask.end)}`;
+          svgLayer.appendChild(depLabel);
+        }
 
         // Step 5: wide invisible hit-area over the same path so the thin line is easy to click/delete
         const hitPath = document.createElementNS(svgNS, "path");
@@ -2504,7 +2625,6 @@
         hitPath.setAttribute('class', 'dep-path-hit');
         hitPath.addEventListener('click', ev => {
           ev.stopPropagation();
-          const predTask = tasks.find(x => x.id === dep.id);
           const predName = predTask ? predTask.name : ('Task #' + dep.id);
           if(confirm(`ลบเส้นเชื่อม Dependency "${predName}" → "${t.name}" (${dep.type}) หรือไม่?`)){
             t.deps = normalizeDeps(t.deps).filter(d => !(d.id === dep.id && d.type === dep.type));
@@ -3126,10 +3246,14 @@
   }
 
   document.getElementById('btnToggleCP').addEventListener('click', () => {
-    showCriticalPath = !showCriticalPath; updateToggleBtnStyles(); renderTimeline(); saveToStorage();
+    showCriticalPath = !showCriticalPath;
+    if(!showCriticalPath) isolateCPTasks = false;
+    updateToggleBtnStyles(); renderTaskTree(); renderTimeline(); saveToStorage();
   });
   document.getElementById('menuToggleCP').addEventListener('click', () => {
-    closeDrawer(); showCriticalPath = !showCriticalPath; updateToggleBtnStyles(); renderTimeline(); saveToStorage();
+    closeDrawer(); showCriticalPath = !showCriticalPath;
+    if(!showCriticalPath) isolateCPTasks = false;
+    updateToggleBtnStyles(); renderTaskTree(); renderTimeline(); saveToStorage();
   });
 
   document.getElementById('btnToggleSCurve').addEventListener('click', () => {

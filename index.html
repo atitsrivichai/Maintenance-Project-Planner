@@ -645,6 +645,55 @@
   }
   .quick-shift-btn:hover { background: var(--dt-primary); color: #FFF; }
 
+  /* Task Editor Modal — 2-column layout, dependency chips, stat box, live-sync box */
+  .task-editor-dialog { width: 720px; }
+  .form-grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+  .stat-box {
+    display: flex; align-items: center; gap: 6px; background: var(--dt-surface-base);
+    border: 1px solid var(--dt-border-subtle); border-radius: 5px; padding: 0 8px;
+  }
+  .stat-box-input {
+    width: 100%; border: none; background: transparent; outline: none; padding: 7px 0;
+    font-family: var(--font-mono); font-size: 15px; font-weight: 700; color: var(--dt-scurve-planned);
+  }
+  .stat-box-suffix { font-size: 10.5px; color: var(--dt-text-muted); white-space: nowrap; }
+
+  .progress-row-flex { display: flex; align-items: center; gap: 10px; }
+  input[type="range"].progress-slider { flex: 1; accent-color: var(--dt-secondary); }
+
+  .deps-chip-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; min-height: 20px; }
+  .deps-chip {
+    display: inline-flex; align-items: center; gap: 6px; background: var(--dt-surface-card);
+    border: 1px solid var(--dt-border-strong); border-radius: 999px; padding: 4px 10px;
+    font-size: 11px; color: var(--dt-text-primary);
+  }
+  .deps-chip .dep-type-btn {
+    cursor: pointer; font-family: var(--font-mono); font-weight: 700; color: var(--dt-scurve-planned);
+    background: rgba(56,189,248,0.12); border-radius: 4px; padding: 1px 5px;
+  }
+  .deps-chip .dep-remove-btn { cursor: pointer; color: var(--dt-text-muted); font-weight: 700; }
+  .deps-chip .dep-remove-btn:hover { color: var(--dt-critical-path); }
+  .deps-add-row { display: flex; gap: 6px; }
+
+  .critical-override-check {
+    background: var(--dt-surface-base); border: 1px solid var(--dt-border-subtle); border-radius: 5px;
+    padding: 7px 10px; font-size: 12.5px;
+  }
+  .critical-override-check:has(input:checked) {
+    background: var(--dt-critical-path-bg); border-color: var(--dt-critical-path); color: var(--dt-critical-path); font-weight: 600;
+  }
+
+  .live-sync-box {
+    display: flex; gap: 10px; background: rgba(37,99,235,0.08); border: 1px solid var(--dt-border-subtle);
+    border-radius: 6px; padding: 10px 12px; margin-top: 14px; font-size: 11.5px; color: var(--dt-text-secondary);
+    line-height: 1.6;
+  }
+  .live-sync-box b { color: var(--dt-text-primary); }
+  .live-sync-box .kbd-key {
+    background: var(--dt-surface-card); border: 1px solid var(--dt-border-strong); border-radius: 4px;
+    padding: 1px 6px; font-family: var(--font-mono); font-size: 10.5px; color: var(--dt-text-primary);
+  }
+
   /* Clean Full A4 Print / PDF CSS (No Shrinking, Crisp & Large) */
   @page {
     size: A4 landscape;
@@ -1036,111 +1085,152 @@
 
 <!-- Task Detail Modal Popup Dialog -->
 <div class="modal-backdrop" id="taskModal">
-  <div class="modal-dialog">
+  <div class="modal-dialog task-editor-dialog">
     <div class="modal-nav-tabs">
-      <button class="tab-btn active" data-tab="general">General</button>
-      <button class="tab-btn" data-tab="description">Description</button>
-      <button class="tab-btn" data-tab="resources">Resources</button>
-      <button class="tab-btn" data-tab="attachment">Attachment</button>
+      <button class="tab-btn active">✏️ Task Editor</button>
     </div>
 
     <div class="modal-body">
-      <!-- General Tab -->
-      <div class="tab-content active" id="tabGeneral">
-        <div class="form-row">
-          <div class="form-group color-picker-box" style="flex:0 0 60px;">
-            <label class="form-label">Color</label>
-            <input type="color" id="modalColor" value="#3498DB">
-          </div>
-          <div class="form-group" style="flex:1;">
-            <label class="form-label">Label / Task Name</label>
-            <input type="text" class="form-input" id="modalName" placeholder="ระบุชื่อ Task...">
-          </div>
-          <div class="form-group" style="flex:0 0 150px;">
-            <label class="form-label">Type (ประเภทรายการ)</label>
-            <select class="form-select" id="modalType">
-              <option value="task">📦 Task (งานทั่วไป)</option>
-              <option value="milestone">♦️ Milestone (จุดส่งมอบ)</option>
-              <option value="mark">📍 Mark (จุดหมายแนวตั้ง)</option>
-              <option value="highlight">🎨 Highlight (แถบช่วงเวลา)</option>
-            </select>
+      <div class="form-grid-2col">
+        <div class="form-group color-picker-box" style="grid-column:span 1; flex:0 0 auto;">
+          <label class="form-label">Color</label>
+          <input type="color" id="modalColor" value="#3498DB">
+        </div>
+        <div class="form-group" style="grid-column: span 2;">
+          <label class="form-label">Task Name / Description</label>
+          <input type="text" class="form-input" id="modalName" placeholder="ระบุชื่อ Task...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Type (ประเภทรายการ)</label>
+          <select class="form-select" id="modalType">
+            <option value="task">📦 Task (งานทั่วไป)</option>
+            <option value="milestone">♦️ Milestone (จุดส่งมอบ)</option>
+            <option value="mark">📍 Mark (จุดหมายแนวตั้ง)</option>
+            <option value="highlight">🎨 Highlight (แถบช่วงเวลา)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top:12px;">
+        <label class="form-label">Parent Task (WBS Rollup)</label>
+        <select class="form-select" id="modalParent">
+          <option value="">— ไม่มี (Top Level) —</option>
+        </select>
+      </div>
+
+      <div class="date-calculation-row" style="margin-top:12px;">
+        <div class="form-group" id="groupStart">
+          <label class="form-label" id="labelStart">Start Date</label>
+          <input type="date" class="form-input" id="modalStart">
+        </div>
+        <span class="arrow-icon date-arrow-icon" id="arrow1">→</span>
+        <div class="form-group" id="groupWeekdays" style="flex:0 0 130px;">
+          <label class="form-label">Calculated Working Days</label>
+          <div class="stat-box">
+            <input type="number" class="stat-box-input" id="modalWeekdays" min="0" value="1"><span class="stat-box-suffix">days</span>
           </div>
         </div>
+        <span class="arrow-icon date-arrow-icon" id="arrow2">→</span>
+        <div class="form-group" id="groupEnd">
+          <label class="form-label">Finish Date</label>
+          <input type="date" class="form-input" id="modalEnd">
+        </div>
+      </div>
 
-        <div class="date-calculation-row">
-          <div class="form-group" id="groupStart">
-            <label class="form-label" id="labelStart">Start Date</label>
-            <input type="date" class="form-input" id="modalStart">
-          </div>
-          <span class="arrow-icon date-arrow-icon" id="arrow1">→</span>
-          <div class="form-group" id="groupWeekdays" style="flex:0 0 90px;">
-            <label class="form-label">WORKDAYS</label>
-            <input type="number" class="form-input" id="modalWeekdays" min="0" value="1">
-          </div>
-          <span class="arrow-icon date-arrow-icon" id="arrow2">→</span>
-          <div class="form-group" id="groupEnd">
-            <label class="form-label">End Date</label>
-            <input type="date" class="form-input" id="modalEnd">
+      <label class="checkbox-group" id="groupHideItem" style="margin-top:10px; background:var(--dt-warning-amber-bg); padding:6px 10px; border-radius:6px; border:1px solid var(--dt-warning-amber); display:none;">
+        <input type="checkbox" id="modalHideItem">
+        👁️ <b>Hide this item from view</b> (ซ่อนรายการนี้ออกจากไทม์ไลน์และตารางรายการซ้าย)
+      </label>
+
+      <label class="checkbox-group" id="groupRollup" style="margin-top:10px;">
+        <input type="checkbox" id="modalRollup">
+        Determine dates and progress from child items (🔒 Rollup)
+      </label>
+
+      <div class="form-grid-2col" style="margin-top:14px;">
+        <div class="form-group">
+          <label class="form-label">Execution Progress</label>
+          <div class="progress-row-flex">
+            <input type="range" id="modalProgressRange" class="progress-slider" min="0" max="100" step="5" value="0">
+            <input type="number" class="form-input" id="modalProgress" min="0" max="100" step="5" value="0" style="width:64px; flex:0 0 64px;">
           </div>
         </div>
-
-        <label class="checkbox-group" id="groupHideItem" style="margin-top:10px; background:var(--dt-warning-amber-bg); padding:6px 10px; border-radius:6px; border:1px solid var(--dt-warning-amber); display:none;">
-          <input type="checkbox" id="modalHideItem">
-          👁️ <b>Hide this item from view</b> (ซ่อนรายการนี้ออกจากไทม์ไลน์และตารางรายการซ้าย)
-        </label>
-
-        <label class="checkbox-group" id="groupRollup" style="margin-top:10px;">
-          <input type="checkbox" id="modalRollup">
-          Determine dates and progress from child items (🔒 Rollup)
-        </label>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">State Icon</label>
-            <select class="form-select" id="modalStatus">
-              <option value="none">⚪ None (ยังไม่เริ่มดำเนินการ)</option>
-              <option value="inprogress">🟠 In Progress (กำลังดำเนินการ)</option>
-              <option value="completed">🟢 Completed (เสร็จสิ้น)</option>
-              <option value="delay">🟡 Delay (ล่าช้ากว่าแผน)</option>
-              <option value="problem">🔴 Problem (มีปัญหาติดขัด)</option>
-              <option value="cancelled">⚪ Cancelled (ยกเลิก)</option>
-            </select>
-          </div>
-          <div class="form-group" style="flex:0 0 120px;">
-            <label class="form-label">Progress (%)</label>
-            <input type="number" class="form-input" id="modalProgress" min="0" max="100" step="5" value="0">
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Predecessors (Pred IDs & Full Lag e.g. 1FS, 2SS, 3FF, 4SF)</label>
-            <input type="text" class="form-input" id="modalDeps" placeholder="1FS, 2SS">
+        <div class="form-group">
+          <label class="form-label">Lead Assignee & Work Team</label>
+          <div style="display:flex; gap:6px;">
+            <input type="text" class="form-input" id="modalOwner" placeholder="ชื่อผู้รับผิดชอบ...">
+            <input type="text" class="form-input" id="modalTeam" placeholder="ทีม เช่น TURB-MECH-A" style="flex:0 0 40%;">
           </div>
         </div>
       </div>
 
-      <!-- Description Tab -->
-      <div class="tab-content" id="tabDescription">
+      <div class="form-group" style="margin-top:14px;">
+        <label class="form-label">Predecessors & Logical Dependencies</label>
+        <div class="deps-chip-list" id="modalDepsChips"></div>
+        <div class="deps-add-row">
+          <input type="text" class="form-input" id="modalDepsAddInput" placeholder="พิมพ์รหัส เช่น 4FS แล้วกด Enter">
+          <button type="button" class="btn-modal ghost" id="btnDepsAddLink">🔗 Link Task</button>
+        </div>
+      </div>
+
+      <div class="form-grid-2col" style="margin-top:14px;">
         <div class="form-group">
+          <label class="form-label">Priority & Category</label>
+          <select class="form-select" id="modalPriority">
+            <option value="">— ไม่ระบุ —</option>
+            <option value="Critical Component">Critical Component</option>
+            <option value="Major Component">Major Component</option>
+            <option value="Minor Component">Minor Component</option>
+            <option value="Standard Task">Standard Task</option>
+          </select>
+        </div>
+        <div class="form-group" style="justify-content:flex-end;">
+          <label class="form-label">Critical Flag Override</label>
+          <label class="checkbox-group critical-override-check" style="margin:0;">
+            <input type="checkbox" id="modalCriticalOverride">
+            Critical Path (CP Locked)
+          </label>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Working Calendar</label>
+          <select class="form-select" id="modalCalendarLabel">
+            <option value="">— ใช้ค่าปฏิทินกลาง —</option>
+            <option value="Std 5-Day Office (Sat-Sun Off)">Std 5-Day Office (Sat-Sun Off)</option>
+            <option value="Std 6-Day Plant (Sun Off)">Std 6-Day Plant (Sun Off)</option>
+            <option value="24/7 Continuous Ops">24/7 Continuous Ops</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top:14px;">
+        <label class="form-label">State Icon (Status)</label>
+        <select class="form-select" id="modalStatus">
+          <option value="none">⚪ None (ยังไม่เริ่มดำเนินการ)</option>
+          <option value="inprogress">🟠 In Progress (กำลังดำเนินการ)</option>
+          <option value="completed">🟢 Completed (เสร็จสิ้น)</option>
+          <option value="delay">🟡 Delay (ล่าช้ากว่าแผน)</option>
+          <option value="problem">🔴 Problem (มีปัญหาติดขัด)</option>
+          <option value="cancelled">⚪ Cancelled (ยกเลิก)</option>
+        </select>
+      </div>
+
+      <div class="form-grid-2col" style="margin-top:14px;">
+        <div class="form-group" style="grid-column: span 2;">
           <label class="form-label">Task Notes & Instructions</label>
-          <textarea class="form-textarea" id="modalDesc" rows="6" placeholder="พิมพ์รายละเอียดงานหรือบันทึกเพิ่มเติม..."></textarea>
+          <textarea class="form-textarea" id="modalDesc" rows="3" placeholder="พิมพ์รายละเอียดงานหรือบันทึกเพิ่มเติม..."></textarea>
         </div>
-      </div>
-
-      <!-- Resources Tab -->
-      <div class="tab-content" id="tabResources">
-        <div class="form-group">
-          <label class="form-label">Assigned Owner / Team</label>
-          <input type="text" class="form-input" id="modalOwner" placeholder="เช่น วิศวกรซ่อมบำรุง / ทีม Audit">
-        </div>
-      </div>
-
-      <!-- Attachment Tab -->
-      <div class="tab-content" id="tabAttachment">
-        <div class="form-group">
-          <label class="form-label">Reference Link / Document URL</label>
+        <div class="form-group" style="grid-column: span 2;">
+          <label class="form-label">Reference Link / Document URL (Attachment)</label>
           <input type="text" class="form-input" id="modalAttachment" placeholder="https://...">
+        </div>
+      </div>
+
+      <div class="live-sync-box">
+        <span>⚡</span>
+        <div>
+          <b>Live Sync Active</b><br>
+          การแก้ไข วันที่/ชื่อ/ประเภท จะพรีวิวบน Gantt แบบสดทันที ค่าอื่นจะบันทึกเมื่อกด Save เท่านั้น —
+          ยกเลิกการแก้ไขทั้งหมดได้ทันทีด้วยปุ่ม Cancel หรือกด <span class="kbd-key">Esc</span>
         </div>
       </div>
     </div>
@@ -1149,7 +1239,7 @@
       <button class="btn-modal danger" id="btnModalDelete">🗑️ Delete Task</button>
       <div style="display:flex; gap:8px;">
         <button class="btn-modal ghost" id="btnModalCancel">Cancel</button>
-        <button class="btn-modal primary" id="btnModalSave">Save</button>
+        <button class="btn-modal primary" id="btnModalSave">💾 Save & Sync</button>
       </div>
     </div>
   </div>
@@ -1296,17 +1386,17 @@
   // --- SAMPLE PLAN BUNDLE (Project Test Function 01) ---
   // Used by "Create another plan..." and "Reset to Sample Plan" — includes tasks + baseline + calendar + timescale
   let defaultTasks = [
-    { id: 12, name: "Task A01", type: "task", status: "completed", color: "#33db4f", start: "2026-06-01", end: "2026-06-12", targetStart: "2026-07-30", targetEnd: "2026-08-06", progress: 100, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false },
-    { id: 16, name: "Task A02", type: "task", status: "completed", color: "#3498db", start: "2026-06-15", end: "2026-06-19", targetStart: "2026-07-30", targetEnd: "2026-08-06", progress: 100, milestone: false, deps: [{id:12, type:"FS"}], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false },
-    { id: 18, name: "Task A03", type: "task", status: "inprogress", color: "#3498db", start: "2026-06-22", end: "2026-06-26", targetStart: "2026-07-30", targetEnd: "2026-08-07", progress: 40, milestone: false, deps: [{id:16, type:"FS"}], parentId: null, collapsed: false, progressMode: "auto", desc: "", owner: "", hidden: false },
-    { id: 19, name: "Task B01", type: "task", status: "inprogress", color: "#3498db", start: "2026-06-08", end: "2026-06-10", targetStart: "2026-07-30", targetEnd: "2026-08-07", progress: 0, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false },
-    { id: 20, name: "Marks 01", type: "mark", status: "delay", color: "#E74C3C", start: "2026-07-30", end: "2026-07-30", targetStart: "2026-07-30", targetEnd: "2026-07-30", progress: 0, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: true },
-    { id: 21, name: "Highlighte 01", type: "highlight", status: "inprogress", color: "#2ECC71", start: "2026-07-30", end: "2026-08-06", targetStart: "2026-07-30", targetEnd: "2026-08-06", progress: 0, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: true },
-    { id: 22, name: "Task B02", type: "task", status: "inprogress", color: "#3498db", start: "2026-06-15", end: "2026-06-23", targetStart: "2026-07-30", targetEnd: "2026-08-07", progress: 94, milestone: false, deps: [{id:19, type:"FS"}], parentId: null, collapsed: false, progressMode: "auto", desc: "", owner: "", hidden: false },
-    { id: 23, name: "Sub-task 1", type: "task", status: "inprogress", color: "#3498db", start: "2026-06-15", end: "2026-06-23", targetStart: "2026-07-30", targetEnd: "2026-08-07", progress: 75, milestone: false, deps: [], parentId: 22, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false },
-    { id: 24, name: "Sub-task 2", type: "task", status: "completed", color: "#3498db", start: "2026-06-15", end: "2026-06-22", targetStart: "2026-06-15", targetEnd: "2026-06-23", progress: 100, milestone: false, deps: [], parentId: 22, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false },
-    { id: 25, name: "Sub-task 3", type: "task", status: "completed", color: "#3498db", start: "2026-06-15", end: "2026-06-19", targetStart: "2026-06-15", targetEnd: "2026-06-19", progress: 100, milestone: false, deps: [], parentId: 22, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false },
-    { id: 27, name: "Sub-task 4", type: "task", status: "completed", color: "#3498db", start: "2026-06-15", end: "2026-06-18", targetStart: "2026-06-15", targetEnd: "2026-06-19", progress: 100, milestone: false, deps: [], parentId: 22, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false }
+    { id: 12, name: "Task A01", type: "task", status: "completed", color: "#33db4f", start: "2026-06-01", end: "2026-06-12", targetStart: "2026-07-30", targetEnd: "2026-08-06", progress: 100, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "" },
+    { id: 16, name: "Task A02", type: "task", status: "completed", color: "#3498db", start: "2026-06-15", end: "2026-06-19", targetStart: "2026-07-30", targetEnd: "2026-08-06", progress: 100, milestone: false, deps: [{id:12, type:"FS"}], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "" },
+    { id: 18, name: "Task A03", type: "task", status: "inprogress", color: "#3498db", start: "2026-06-22", end: "2026-06-26", targetStart: "2026-07-30", targetEnd: "2026-08-07", progress: 40, milestone: false, deps: [{id:16, type:"FS"}], parentId: null, collapsed: false, progressMode: "auto", desc: "ตรวจสอบ NDT และถอด Rotor ตามขั้นตอนความปลอดภัย", owner: "Wichai K.", hidden: false, team: "TURB-MECH-A", priority: "Major Component", criticalOverride: false, calendarLabel: "Std 6-Day Plant (Sun Off)", attachment: "" },
+    { id: 19, name: "Task B01", type: "task", status: "inprogress", color: "#3498db", start: "2026-06-08", end: "2026-06-10", targetStart: "2026-07-30", targetEnd: "2026-08-07", progress: 0, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "" },
+    { id: 20, name: "Marks 01", type: "mark", status: "delay", color: "#E74C3C", start: "2026-07-30", end: "2026-07-30", targetStart: "2026-07-30", targetEnd: "2026-07-30", progress: 0, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: true, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "" },
+    { id: 21, name: "Highlighte 01", type: "highlight", status: "inprogress", color: "#2ECC71", start: "2026-07-30", end: "2026-08-06", targetStart: "2026-07-30", targetEnd: "2026-08-06", progress: 0, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: true, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "" },
+    { id: 22, name: "Task B02", type: "task", status: "inprogress", color: "#3498db", start: "2026-06-15", end: "2026-06-23", targetStart: "2026-07-30", targetEnd: "2026-08-07", progress: 94, milestone: false, deps: [{id:19, type:"FS"}], parentId: null, collapsed: false, progressMode: "auto", desc: "", owner: "", hidden: false, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "" },
+    { id: 23, name: "Sub-task 1", type: "task", status: "inprogress", color: "#3498db", start: "2026-06-15", end: "2026-06-23", targetStart: "2026-07-30", targetEnd: "2026-08-07", progress: 75, milestone: false, deps: [], parentId: 22, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "" },
+    { id: 24, name: "Sub-task 2", type: "task", status: "completed", color: "#3498db", start: "2026-06-15", end: "2026-06-22", targetStart: "2026-06-15", targetEnd: "2026-06-23", progress: 100, milestone: false, deps: [], parentId: 22, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "" },
+    { id: 25, name: "Sub-task 3", type: "task", status: "completed", color: "#3498db", start: "2026-06-15", end: "2026-06-19", targetStart: "2026-06-15", targetEnd: "2026-06-19", progress: 100, milestone: false, deps: [], parentId: 22, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "" },
+    { id: 27, name: "Sub-task 4", type: "task", status: "completed", color: "#3498db", start: "2026-06-15", end: "2026-06-18", targetStart: "2026-06-15", targetEnd: "2026-06-19", progress: 100, milestone: false, deps: [], parentId: 22, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "" }
   ];
 
   let defaultBaselineHistory = [
@@ -1528,6 +1618,11 @@
         }
         t.deps = normalizeDeps(t.deps);
         if(t.hidden === undefined) t.hidden = false;
+        if(t.team === undefined) t.team = '';
+        if(t.priority === undefined) t.priority = '';
+        if(t.criticalOverride === undefined) t.criticalOverride = false;
+        if(t.calendarLabel === undefined) t.calendarLabel = '';
+        if(t.attachment === undefined) t.attachment = '';
       });
     }
     if(Array.isArray(payload.baselineHistory)) baselineHistory = payload.baselineHistory;
@@ -1730,6 +1825,10 @@
         });
       }
     });
+
+    // Manual Critical Flag Override (from Task Editor Modal) — additive only,
+    // does not affect the true CPM-computed totalDays (project critical-path length).
+    tasks.forEach(t => { if(t.criticalOverride) criticalIds.add(t.id); });
 
     const totalDays = countWorkdaysBetween(minDateStr, projectEndStr);
     return { criticalIds, criticalEdges, totalDays, criticalCount: criticalIds.size };
@@ -2766,6 +2865,7 @@
   }
 
   let modalTaskBackup = null;
+  let modalDepsState = [];
 
   function liveSyncModalChanges(){
     if(activeEditingTaskId == null) return;
@@ -2783,6 +2883,110 @@
     }
   }
 
+  // Returns the set of ids that are descendants (children, grandchildren, ...) of taskId —
+  // used to keep the Parent Task dropdown from offering a choice that would create a cycle.
+  function getDescendantIds(taskId){
+    const result = new Set();
+    const stack = [taskId];
+    while(stack.length){
+      const cur = stack.pop();
+      tasks.forEach(t => {
+        if(t.parentId === cur && !result.has(t.id)){
+          result.add(t.id);
+          stack.push(t.id);
+        }
+      });
+    }
+    return result;
+  }
+
+  function cycleDepType(type){
+    const order = ['FS', 'SS', 'FF', 'SF'];
+    const idx = order.indexOf(type);
+    return order[(idx + 1) % order.length];
+  }
+
+  function renderDepsChips(){
+    const container = document.getElementById('modalDepsChips');
+    if(!modalDepsState.length){
+      container.innerHTML = '<span style="font-size:11.5px; color:var(--dt-text-muted);">ยังไม่มี Predecessor</span>';
+      return;
+    }
+    container.innerHTML = modalDepsState.map((d, idx) => {
+      const depTask = tasks.find(x => x.id === d.id);
+      const label = depTask ? escapeHtml(depTask.name) : ('Task #' + d.id);
+      return `
+        <span class="deps-chip" data-idx="${idx}">
+          #${d.id} (${label}) <span class="dep-type-btn" data-idx="${idx}">${d.type}</span>
+          <span class="dep-remove-btn" data-idx="${idx}">✕</span>
+        </span>`;
+    }).join('');
+
+    container.querySelectorAll('.dep-type-btn').forEach(el => {
+      el.addEventListener('click', () => {
+        const idx = +el.dataset.idx;
+        modalDepsState[idx].type = cycleDepType(modalDepsState[idx].type);
+        renderDepsChips();
+      });
+    });
+    container.querySelectorAll('.dep-remove-btn').forEach(el => {
+      el.addEventListener('click', () => {
+        const idx = +el.dataset.idx;
+        modalDepsState.splice(idx, 1);
+        renderDepsChips();
+      });
+    });
+  }
+
+  function addDepFromInput(){
+    const input = document.getElementById('modalDepsAddInput');
+    const parsed = parseDepsInput(input.value);
+    if(!parsed.length) return;
+    const newDep = parsed[0];
+    if(activeEditingTaskId != null && newDep.id === activeEditingTaskId){
+      alert('⚠️ Task ไม่สามารถเป็น Predecessor ของตัวเองได้');
+      return;
+    }
+    if(!tasks.some(x => x.id === newDep.id)){
+      alert(`⚠️ ไม่พบ Task #${newDep.id}`);
+      return;
+    }
+    if(modalDepsState.some(d => d.id === newDep.id)){
+      alert(`⚠️ Task #${newDep.id} ถูกเพิ่มเป็น Predecessor อยู่แล้ว`);
+      return;
+    }
+    if(activeEditingTaskId != null && wouldCreateCycle(newDep.id, activeEditingTaskId)){
+      const depTask = tasks.find(x => x.id === newDep.id);
+      alert(`⚠️ เพิ่มไม่ได้: "${depTask ? depTask.name : ('Task #' + newDep.id)}" จะทำให้เกิด Circular Dependency`);
+      return;
+    }
+    modalDepsState.push(newDep);
+    renderDepsChips();
+    input.value = '';
+  }
+
+  document.getElementById('btnDepsAddLink').addEventListener('click', addDepFromInput);
+  document.getElementById('modalDepsAddInput').addEventListener('keydown', e => {
+    if(e.key === 'Enter'){ e.preventDefault(); addDepFromInput(); }
+  });
+
+  document.getElementById('modalProgressRange').addEventListener('input', e => {
+    document.getElementById('modalProgress').value = e.target.value;
+  });
+  document.getElementById('modalProgress').addEventListener('input', () => {
+    document.getElementById('modalProgressRange').value = document.getElementById('modalProgress').value || 0;
+  });
+
+  function populateModalParentOptions(taskId){
+    const sel = document.getElementById('modalParent');
+    const excluded = getDescendantIds(taskId);
+    excluded.add(taskId);
+    sel.innerHTML = '<option value="">— ไม่มี (Top Level) —</option>' + tasks
+      .filter(t => !excluded.has(t.id))
+      .map(t => `<option value="${t.id}">${'　'.repeat(taskDepth(t))}${escapeHtml(t.name)}</option>`)
+      .join('');
+  }
+
   function openModal(taskId){
     const t = tasks.find(x => x.id === taskId);
     if(!t) return;
@@ -2795,6 +2999,9 @@
     document.getElementById('modalType').value = itemType;
     document.getElementById('modalStart').value = t.start || '';
 
+    populateModalParentOptions(taskId);
+    document.getElementById('modalParent').value = (t.parentId != null) ? String(t.parentId) : '';
+
     // Enforce valid end date boundary on open
     let validEnd = t.end || t.start;
     if(t.start && validEnd && parseDate(validEnd) < parseDate(t.start)){
@@ -2806,12 +3013,18 @@
     document.getElementById('modalRollup').checked = (t.progressMode === 'auto');
     document.getElementById('modalStatus').value = t.status || 'inprogress';
     document.getElementById('modalProgress').value = t.progress || 0;
-    document.getElementById('modalDeps').value = formatDepsString(t.deps);
+    document.getElementById('modalProgressRange').value = t.progress || 0;
+    modalDepsState = normalizeDeps(JSON.parse(JSON.stringify(t.deps || [])));
+    renderDepsChips();
     document.getElementById('modalDesc').value = t.desc || '';
     document.getElementById('modalOwner').value = t.owner || '';
+    document.getElementById('modalTeam').value = t.team || '';
+    document.getElementById('modalPriority').value = t.priority || '';
+    document.getElementById('modalCriticalOverride').checked = !!t.criticalOverride;
+    document.getElementById('modalCalendarLabel').value = t.calendarLabel || '';
+    document.getElementById('modalAttachment').value = t.attachment || '';
 
     updateModalDateFieldsUI(itemType);
-    switchTab('general');
     document.getElementById('taskModal').classList.add('open');
   }
 
@@ -2885,13 +3098,14 @@
     const t = tasks.find(x => x.id === activeEditingTaskId);
     if(!t) return;
 
-    const newDeps = parseDepsInput(document.getElementById('modalDeps').value);
-    const cyclicDep = newDeps.find(d => wouldCreateCycle(d.id, t.id));
+    const cyclicDep = modalDepsState.find(d => wouldCreateCycle(d.id, t.id));
     if(cyclicDep){
       const depTask = tasks.find(x => x.id === cyclicDep.id);
       alert(`⚠️ บันทึกไม่ได้: Predecessor "${depTask ? depTask.name : ('Task #' + cyclicDep.id)}" จะทำให้เกิด Circular Dependency (วนลูปกลับมาที่ Task นี้เอง) กรุณาแก้ไขช่อง Predecessors ก่อนบันทึก`);
       return;
     }
+
+    const newParentId = document.getElementById('modalParent').value;
 
     t.name = document.getElementById('modalName').value.trim() || 'Task ไม่มีชื่อ';
     t.color = document.getElementById('modalColor').value;
@@ -2905,13 +3119,25 @@
     t.progress = Math.max(0, Math.min(100, parseInt(document.getElementById('modalProgress').value || "0", 10) || 0));
     t.desc = document.getElementById('modalDesc').value;
     t.owner = document.getElementById('modalOwner').value;
-    t.deps = newDeps;
+    t.team = document.getElementById('modalTeam').value;
+    t.priority = document.getElementById('modalPriority').value;
+    t.criticalOverride = document.getElementById('modalCriticalOverride').checked;
+    t.calendarLabel = document.getElementById('modalCalendarLabel').value;
+    t.attachment = document.getElementById('modalAttachment').value;
+    t.parentId = newParentId ? Number(newParentId) : null;
+    t.deps = modalDepsState;
 
     closeModal(true);
     render();
   });
 
   document.getElementById('btnModalCancel').addEventListener('click', () => closeModal(false));
+
+  document.addEventListener('keydown', e => {
+    if(e.key === 'Escape' && document.getElementById('taskModal').classList.contains('open')){
+      closeModal(false);
+    }
+  });
 
   document.getElementById('btnModalDelete').addEventListener('click', () => {
     if(activeEditingTaskId == null) return;
@@ -3241,10 +3467,10 @@
   });
 
   document.getElementById('menuExportCSV').addEventListener('click', () => {
-    const headers = ['id','name','type','status','start','end','progress','owner'];
+    const headers = ['id','name','type','status','start','end','progress','owner','team','priority','criticalOverride','calendarLabel','attachment'];
     const rows = [headers.join(',')];
     tasks.forEach(t => {
-      rows.push([t.id, `"${t.name}"`, t.type, t.status, t.start, t.end, t.progress, `"${t.owner||''}"`].join(','));
+      rows.push([t.id, `"${t.name}"`, t.type, t.status, t.start, t.end, t.progress, `"${t.owner||''}"`, `"${t.team||''}"`, `"${t.priority||''}"`, !!t.criticalOverride, `"${t.calendarLabel||''}"`, `"${t.attachment||''}"`].join(','));
     });
     const csvContent = '\uFEFF' + rows.join('\r\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

@@ -73,6 +73,7 @@
       const uid = await readyUid;
       await setDoc(doc(db, 'plans', uid), payload);
       window.__fbStatus = 'synced';
+      window.__fbLastSyncedAt = new Date().toISOString();
     } catch(err){
       window.__fbStatus = 'error';
       console.error('Firestore sync failed:', err);
@@ -386,6 +387,29 @@
     font-size: 10px; font-family: var(--font-mono); fill: var(--dt-text-primary);
   }
   @media (max-width: 900px) { .dash-two-col { grid-template-columns: 1fr; } }
+
+  /* Baseline History & Comparison page */
+  .vault-row {
+    display: grid; grid-template-columns: 1.4fr 1fr 1fr 0.8fr 1.6fr; gap: 10px; align-items: center;
+    padding: 10px; background: var(--dt-surface-base); border-radius: 6px; border: 1px solid var(--dt-border-subtle);
+    margin-bottom: 8px; font-size: 12px;
+  }
+  .vault-row:last-child { margin-bottom: 0; }
+  .vault-row-head {
+    display: grid; grid-template-columns: 1.4fr 1fr 1fr 0.8fr 1.6fr; gap: 10px; padding: 0 10px 6px;
+    font-size: 10px; font-weight: 700; color: var(--dt-text-muted); text-transform: uppercase;
+  }
+  .vault-state-badge { font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; cursor: pointer; border: none; }
+  .vault-state-badge.active { background: var(--dt-scurve-actual); color: #04281D; }
+  .vault-state-badge.standby { background: var(--dt-surface-hover); color: var(--dt-text-secondary); }
+  .vault-state-badge.archived { background: var(--dt-border-subtle); color: var(--dt-text-muted); }
+  .overlay-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 11.5px; }
+  .overlay-row:last-child { margin-bottom: 0; }
+  .overlay-row-label { flex: 0 0 160px; color: var(--dt-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .overlay-row-track { flex: 1; position: relative; height: 20px; background: var(--dt-surface-base); border-radius: 4px; }
+  .overlay-row-bar { position: absolute; height: 7px; border-radius: 3px; }
+  .overlay-row-bar.current { top: 2px; background: var(--dt-scurve-planned); }
+  .overlay-row-bar.baseline { bottom: 2px; background: var(--dt-baseline-purple); }
 
   /* Help / User Manual Left Panel (wider, detailed, scrollable with in-page TOC) */
   .help-overlay {
@@ -1132,7 +1156,7 @@
     <div class="nav-rail" id="navRail">
       <button class="nav-rail-btn active" data-view="gantt" title="Gantt Chart"><span class="nav-rail-btn-icon">📊</span><span class="nav-rail-btn-label">Timeline</span></button>
       <button class="nav-rail-btn" data-view="dashboard" title="Dashboard ภาพรวมโครงการ"><span class="nav-rail-btn-icon">📈</span><span class="nav-rail-btn-label">Progress</span></button>
-      <button class="nav-rail-btn" id="btnNavBaseline" title="Baseline Snapshots"><span class="nav-rail-btn-icon">📸</span><span class="nav-rail-btn-label">Baseline</span></button>
+      <button class="nav-rail-btn" data-view="baseline" title="Baseline History & Comparison"><span class="nav-rail-btn-icon">📸</span><span class="nav-rail-btn-label">Baseline</span></button>
       <button class="nav-rail-btn" id="btnNavCalendar" title="ตั้งค่าเวลาทำงานและวันหยุดปฏิทิน"><span class="nav-rail-btn-icon">📅</span><span class="nav-rail-btn-label">Calendar</span></button>
       <button class="nav-rail-btn" id="btnNavConfig" title="System & Project Configuration"><span class="nav-rail-btn-icon">⚙️</span><span class="nav-rail-btn-label">Config</span></button>
     </div>
@@ -1172,6 +1196,7 @@
 
     <!-- Dashboard Overview View -->
     <div class="dashboard-view" id="dashboardView" style="display:none;"></div>
+    <div class="dashboard-view" id="baselineView" style="display:none;"></div>
   </div>
 </div>
 
@@ -3224,12 +3249,13 @@
     document.getElementById('scurveRowSpacer').style.display = view === 'gantt' ? '' : 'none';
     document.getElementById('scurveClip').style.display = view === 'gantt' ? '' : 'none';
     document.getElementById('dashboardView').style.display = view === 'dashboard' ? '' : 'none';
+    document.getElementById('baselineView').style.display = view === 'baseline' ? '' : 'none';
     if(view === 'dashboard') renderDashboard();
+    if(view === 'baseline') renderBaselinePage();
   }
   document.querySelectorAll('.nav-rail-btn[data-view]').forEach(btn => {
     btn.addEventListener('click', () => switchView(btn.dataset.view));
   });
-  document.getElementById('btnNavBaseline').addEventListener('click', () => { renderHistoryModal(); document.getElementById('historyModal').classList.add('open'); });
   document.getElementById('btnNavCalendar').addEventListener('click', openCalendarModal);
   document.getElementById('btnNavConfig').addEventListener('click', openConfigModal);
 
@@ -3539,6 +3565,247 @@
     `;
 
     document.getElementById('btnOpenProjectSafety').addEventListener('click', openProjectSafetyModal);
+  }
+
+  // --- BASELINE HISTORY & COMPARISON PAGE ---
+  function renderBaselinePage(){
+    const container = document.getElementById('baselineView');
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const cp = computeCriticalPath();
+    const officialBaseline = systemConfig.officialBaselineId ? baselineHistory.find(h => h.id === systemConfig.officialBaselineId) : null;
+
+    // KPI 1: Baseline Slippage Impact — current CPM forecast finish vs the official baseline's stored finish
+    let slippageHtml;
+    if(officialBaseline && cp.projectEndStr){
+      const baselineFinish = Object.values(officialBaseline.snapshot).reduce((max, s) => {
+        const d = parseDate(s.targetEnd); return (!max || d > max) ? d : max;
+      }, null);
+      const baselineFinishStr = baselineFinish ? fmtDate(baselineFinish) : null;
+      const slipDays = baselineFinishStr ? countWorkdaysBetween(baselineFinishStr, cp.projectEndStr) - 1 : 0;
+      const slipColor = slipDays > 0 ? 'var(--dt-critical-path)' : (slipDays < 0 ? 'var(--dt-scurve-actual)' : 'var(--dt-text-primary)');
+      slippageHtml = `
+        <div class="dash-tile-value-row"><span class="dash-tile-value" style="color:${slipColor}">${slipDays >= 0 ? '+' : ''}${slipDays}</span><span class="dash-tile-value-trail">Days TF Deficit</span></div>
+        <div class="dash-tile-sub">Critical Path Pushed: ${baselineFinishStr} → ${cp.projectEndStr}</div>`;
+    } else {
+      slippageHtml = `<div class="dash-tile-value">-</div><div class="dash-tile-sub">ยังไม่ได้ตั้ง Official Baseline (Config &gt; CPM Engine)</div>`;
+    }
+
+    // KPI 2: Active Milestones Tracked — Early / On-Time / Delayed vs target
+    const milestones = tasks.filter(t => !t.hidden && t.type === 'milestone' && t.start && t.targetStart);
+    let early = 0, onTime = 0, delayed = 0;
+    milestones.forEach(t => {
+      const diff = diffDays(parseDate(t.targetStart), parseDate(t.start));
+      if(diff < 0) early++; else if(diff === 0) onTime++; else delayed++;
+    });
+    const trackedCount = early + onTime;
+
+    // KPI 3: Active Comparison Target
+    const activeTargetHtml = officialBaseline
+      ? `<div class="dash-tile-value" style="font-size:18px;">${escapeHtml(officialBaseline.label)}</div><div class="dash-tile-sub">Locked: ${new Date(officialBaseline.savedAt).toLocaleDateString('th-TH')} by ${escapeHtml(officialBaseline.author || 'Unknown')}</div>`
+      : `<div class="dash-tile-value" style="font-size:15px;">ยังไม่ได้ตั้งค่า</div><div class="dash-tile-sub">ตั้งได้ที่ Config &gt; CPM Engine &gt; Comparison Target</div>`;
+
+    // Critical Variance banner — worst critical task vs its stored baseline target
+    let varianceHtml = '';
+    if(officialBaseline){
+      let worst = null;
+      tasks.forEach(t => {
+        if(!cp.criticalIds.has(t.id)) return;
+        const snap = officialBaseline.snapshot[t.id];
+        if(!snap || !snap.targetEnd || !t.end) return;
+        const slip = countWorkdaysBetween(snap.targetEnd, t.end) - 1;
+        if(slip > 0 && (!worst || slip > worst.slip)) worst = { t, slip, snap };
+      });
+      if(worst){
+        varianceHtml = `
+          <div class="dash-section" style="background:var(--dt-critical-path-bg); border-color:var(--dt-critical-path); display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <div>⚠️ <b>Critical Variance Detected vs ${escapeHtml(officialBaseline.label)}:</b>
+              +${worst.slip} วันบน Critical Path — Task "${escapeHtml(worst.t.name)}" ขยายจากแผนเดิม (${worst.snap.targetEnd} → ${worst.t.end})
+            </div>
+          </div>`;
+      }
+    }
+
+    // Baseline Version Vault
+    const vaultRowsHtml = baselineHistory.length ? baselineHistory.map((h, idx) => {
+      const isComparing = compareVersionId === h.id;
+      const isOfficial = systemConfig.officialBaselineId === h.id;
+      const state = h.state || 'standby';
+      return `
+        <div class="vault-row">
+          <div><b>Rev ${idx}${isOfficial ? ' • ACTIVE REF' : ''}</b> — ${escapeHtml(h.label)}</div>
+          <div>${new Date(h.savedAt).toLocaleString('th-TH')}</div>
+          <div>${escapeHtml(h.author || 'Unknown')}</div>
+          <div>
+            <select class="vault-state-select" data-id="${h.id}" style="background:transparent; border:none; color:inherit; font-size:11px;">
+              <option value="active" ${state==='active'?'selected':''}>Active</option>
+              <option value="standby" ${state==='standby'?'selected':''}>Standby</option>
+              <option value="archived" ${state==='archived'?'selected':''}>Archived</option>
+            </select>
+          </div>
+          <div style="display:flex; gap:6px; justify-content:flex-end;">
+            <button class="btn-modal ghost vault-compare" data-id="${h.id}" style="padding:3px 8px; font-size:11px; ${isComparing?'background:rgba(37,99,235,0.15); color:#38BDF8; font-weight:bold;':''}">👁 ${isComparing ? 'กำลังเทียบ' : 'Compare'}</button>
+            <button class="btn-modal ghost vault-restore" data-id="${h.id}" style="padding:3px 8px; font-size:11px;">⤴ Restore</button>
+            <button class="btn-modal danger vault-del" data-id="${h.id}" style="padding:3px 8px; font-size:11px;">✕</button>
+          </div>
+        </div>`;
+    }).join('') : '<div class="dash-list-empty">ยังไม่มี Baseline Snapshot ที่บันทึกไว้</div>';
+
+    // Cloud Sync & Audit Trail
+    const recentCommitsHtml = baselineHistory.slice().reverse().slice(0, 5).map(h =>
+      `<div class="dash-list-item"><span>${escapeHtml(h.label)}</span><span style="color:var(--dt-text-muted); font-size:10.5px;">${new Date(h.savedAt).toLocaleDateString('th-TH')}</span></div>`
+    ).join('') || '<div class="dash-list-empty">ยังไม่มี Commit</div>';
+
+    // Gantt Overlay Analysis — compact bar-per-task comparison vs the official baseline
+    let overlayHtml = '<div class="dash-list-empty">ตั้ง Official Baseline ที่ Config เพื่อดู Overlay Analysis</div>';
+    if(officialBaseline){
+      const compareTasks = tasks.filter(t => !t.hidden && t.type !== 'mark' && t.type !== 'highlight' && t.start && t.end && officialBaseline.snapshot[t.id])
+        .sort((a, b) => (cp.criticalIds.has(b.id) ? 1 : 0) - (cp.criticalIds.has(a.id) ? 1 : 0))
+        .slice(0, 10);
+      if(compareTasks.length){
+        let minD = null, maxD = null;
+        compareTasks.forEach(t => {
+          const snap = officialBaseline.snapshot[t.id];
+          [t.start, t.end, snap.targetStart, snap.targetEnd].forEach(ds => {
+            const d = parseDate(ds);
+            if(!minD || d < minD) minD = d;
+            if(!maxD || d > maxD) maxD = d;
+          });
+        });
+        const totalSpan = Math.max(1, diffDays(minD, maxD));
+        overlayHtml = compareTasks.map(t => {
+          const snap = officialBaseline.snapshot[t.id];
+          const curL = diffDays(minD, parseDate(t.start)) / totalSpan * 100;
+          const curW = Math.max(1, diffDays(parseDate(t.start), parseDate(t.end)) / totalSpan * 100);
+          const baseL = diffDays(minD, parseDate(snap.targetStart)) / totalSpan * 100;
+          const baseW = Math.max(1, diffDays(parseDate(snap.targetStart), parseDate(snap.targetEnd)) / totalSpan * 100);
+          return `
+            <div class="overlay-row">
+              <div class="overlay-row-label" title="${escapeHtml(t.name)}">${cp.criticalIds.has(t.id) ? '🔴' : '⏳'} ${escapeHtml(t.name)}</div>
+              <div class="overlay-row-track">
+                <div class="overlay-row-bar current" style="left:${curL}%; width:${curW}%;" title="Current: ${t.start} - ${t.end}"></div>
+                <div class="overlay-row-bar baseline" style="left:${baseL}%; width:${baseW}%;" title="Baseline: ${snap.targetStart} - ${snap.targetEnd}"></div>
+              </div>
+            </div>`;
+        }).join('');
+      }
+    }
+
+    container.innerHTML = `
+      <div class="dash-grid">
+        <div class="dash-tile"><div class="dash-tile-label"><span>Baseline Slippage Impact</span></div>${slippageHtml}</div>
+        <div class="dash-tile">
+          <div class="dash-tile-label"><span>Active Milestones Tracked</span></div>
+          <div class="dash-tile-value-row"><span class="dash-tile-value">${trackedCount}/${milestones.length}</span><span class="dash-tile-value-trail">Milestones</span></div>
+          <div class="dash-tile-sub">${early} Early • ${onTime} On-Time • ${delayed} Delayed</div>
+        </div>
+        <div class="dash-tile"><div class="dash-tile-label"><span>Active Comparison Target</span></div>${activeTargetHtml}</div>
+      </div>
+
+      ${varianceHtml}
+
+      <div class="dash-section">
+        <div class="dash-section-header-row">
+          <div class="dash-section-title">🗄️ Baseline Version Vault (คลังบันทึกประวัติ)</div>
+          <button type="button" class="btn-modal primary" id="btnSaveBaselineVault" style="padding:6px 12px; font-size:12px;">+ Save Baseline Version</button>
+        </div>
+        <div class="vault-row-head"><span>Version / Revision</span><span>Timestamp</span><span>Author</span><span>State</span><span style="text-align:right;">Actions</span></div>
+        ${vaultRowsHtml}
+      </div>
+
+      <div class="dash-two-col">
+        <div class="dash-section">
+          <div class="dash-section-title">📈 Gantt Overlay Analysis: Current Schedule vs Baseline</div>
+          <div class="dash-section-subtitle" style="margin-bottom:12px;">${officialBaseline ? `Comparing against: ${escapeHtml(officialBaseline.label)}` : ''}</div>
+          ${overlayHtml}
+        </div>
+        <div class="dash-section">
+          <div class="dash-section-title">☁️ Cloud Sync & Audit Trail</div>
+          <div class="dash-evm-stat" style="margin-bottom:8px;">
+            <div class="dash-evm-stat-label">Operator Identity</div>
+            <div class="config-readonly-box">${window.__fbUser ? escapeHtml(window.__fbUser.name || window.__fbUser.email) : 'ยังไม่ได้ล็อกอิน'}</div>
+          </div>
+          <div class="dash-evm-stat" style="margin-bottom:8px;">
+            <div class="dash-evm-stat-label">Cluster Target</div>
+            <div class="config-readonly-box">${window.__fbProjectId || '-'}</div>
+          </div>
+          <div class="dash-evm-stat" style="margin-bottom:12px;">
+            <div class="dash-evm-stat-label">Last Remote Sync</div>
+            <div class="config-readonly-box">${window.__fbLastSyncedAt ? new Date(window.__fbLastSyncedAt).toLocaleString('th-TH') : 'ยังไม่เคย sync'}</div>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+            <button type="button" class="btn-modal ghost" id="btnBaselineChecksum" style="font-size:11px;">🔒 Checksum Verification</button>
+            <button type="button" class="btn-modal ghost" id="btnBaselineForceSync" style="font-size:11px;">🔄 Force Firestore Sync Now</button>
+          </div>
+          <div class="config-readonly-box" id="baselineChecksumResult" style="display:none; margin-bottom:12px; word-break:break-all;"></div>
+          <div class="dash-section-title" style="font-size:11px;">Recent Snapshot Commits</div>
+          <div class="dash-list">${recentCommitsHtml}</div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('btnSaveBaselineVault').addEventListener('click', () => {
+      const label = prompt('ตั้งชื่อ Baseline Snapshot นี้:', '');
+      if(label === null) return;
+      captureBaselineSnapshot(label);
+      renderBaselinePage();
+    });
+
+    container.querySelectorAll('.vault-state-select').forEach(sel => {
+      sel.addEventListener('change', () => {
+        const h = baselineHistory.find(x => x.id === +sel.dataset.id);
+        if(h){ h.state = sel.value; saveToStorage(); }
+      });
+    });
+
+    container.querySelectorAll('.vault-compare').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = +btn.dataset.id;
+        compareVersionId = (compareVersionId === id) ? null : id;
+        switchView('gantt');
+        renderTimeline();
+      });
+    });
+
+    container.querySelectorAll('.vault-restore').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = +btn.dataset.id;
+        const entry = baselineHistory.find(x => x.id === id);
+        if(!confirm(`Restore แผนงาน "${entry.label}" ?\nวันที่ของทุก Task จะถูกย้อนกลับตาม Snapshot นี้`)) return;
+        tasks.forEach(t => {
+          const snap = entry.snapshot[t.id];
+          if(snap){ t.start = snap.targetStart; t.end = snap.targetEnd; }
+        });
+        render();
+        renderBaselinePage();
+      });
+    });
+
+    container.querySelectorAll('.vault-del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = +btn.dataset.id;
+        if(!confirm('ลบ Snapshot นี้ทิ้งหรือไม่?')) return;
+        baselineHistory = baselineHistory.filter(x => x.id !== id);
+        if(compareVersionId === id) compareVersionId = null;
+        if(systemConfig.officialBaselineId === id) systemConfig.officialBaselineId = null;
+        saveToStorage();
+        renderBaselinePage();
+      });
+    });
+
+    document.getElementById('btnBaselineChecksum').addEventListener('click', async () => {
+      const payload = buildStoragePayload();
+      const data = new TextEncoder().encode(JSON.stringify(payload));
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+      const resultEl = document.getElementById('baselineChecksumResult');
+      resultEl.textContent = 'SHA-256: ' + hex;
+      resultEl.style.display = '';
+    });
+
+    document.getElementById('btnBaselineForceSync').addEventListener('click', () => {
+      saveToStorage();
+      setTimeout(() => renderBaselinePage(), 400);
+    });
   }
 
   // --- TIMESCALE MODAL CONTROLLER ---
@@ -4179,6 +4446,8 @@
       id: nextHistId++,
       label: label && label.trim() ? label.trim() : ('Snapshot ' + new Date().toLocaleString('th-TH')),
       savedAt: new Date().toISOString(),
+      author: (window.__fbUser && window.__fbUser.name) || 'Unknown',
+      state: 'standby',
       snapshot
     };
     baselineHistory.push(entry);

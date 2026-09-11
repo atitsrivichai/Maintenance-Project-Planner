@@ -296,36 +296,95 @@
     grid-column: 1; grid-row: 1;
     background: var(--dt-surface-panel); border-right: 1px solid var(--dt-border-subtle);
     display: flex; flex-direction: column;
-    align-items: center; padding: 10px 0; gap: 6px; z-index: 11;
+    align-items: center; padding: 10px 0; gap: 4px; z-index: 11;
   }
   .nav-rail-btn {
-    width: 38px; height: 38px; border-radius: 8px; border: none; background: transparent;
-    color: var(--dt-text-secondary); font-size: 18px; cursor: pointer; display: flex; align-items: center;
-    justify-content: center; transition: all 0.15s;
+    width: 48px; height: 46px; border-radius: 8px; border: none; background: transparent;
+    color: var(--dt-text-secondary); cursor: pointer; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 3px; transition: all 0.15s;
   }
+  .nav-rail-btn-icon { font-size: 16px; line-height: 1; }
+  .nav-rail-btn-label { font-size: 8px; font-weight: 700; letter-spacing: 0.3px; text-transform: uppercase; font-family: var(--font-mono); }
   .nav-rail-btn:hover { background: var(--dt-surface-hover); color: var(--dt-text-primary); }
   .nav-rail-btn.active { background: var(--dt-primary); color: #FFF; }
 
   /* Dashboard Overview View */
-  .dashboard-view { grid-column: 2 / 4; grid-row: 1 / 3; overflow-y: auto; background: #F4F6F8; padding: 20px 24px; }
-  .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 20px; }
-  .dash-tile { background: #FFF; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #EAECEE; }
-  .dash-tile .dash-tile-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
-  .dash-tile .dash-tile-value { font-size: 26px; font-weight: 700; color: var(--text-main); }
-  .dash-tile .dash-tile-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
-  .dash-section { background: #FFF; border-radius: 10px; padding: 18px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #EAECEE; }
-  .dash-section-title { font-size: 13px; font-weight: 700; color: var(--text-main); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
-  .dash-status-bar { display: flex; height: 26px; border-radius: 6px; overflow: hidden; margin-bottom: 8px; }
-  .dash-status-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 11.5px; color: var(--text-main); }
-  .dash-status-legend span { display: inline-flex; align-items: center; gap: 5px; }
-  .dash-status-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
-  .dash-list { display: flex; flex-direction: column; gap: 8px; }
-  .dash-list-item {
-    display: flex; align-items: center; justify-content: space-between; padding: 8px 10px;
-    background: #F8F9FA; border-radius: 6px; font-size: 12.5px; border: 1px solid #EAECEE;
+  .dashboard-view { grid-column: 2 / 4; grid-row: 1 / 3; overflow-y: auto; background: var(--dt-surface-base); padding: 20px 24px; font-family: var(--font-mono); }
+  .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  .dash-tile { background: var(--dt-surface-panel); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--dt-border-subtle); position: relative; }
+  .dash-tile .dash-tile-label {
+    font-size: 10.5px; font-weight: 700; color: var(--dt-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;
+    margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 6px;
   }
-  .dash-list-empty { font-size: 12px; color: var(--text-muted); text-align: center; padding: 14px; }
-  .dash-badge { font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 10px; color: #FFF; white-space: nowrap; }
+  .dash-tile-value-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .dash-tile .dash-tile-value { font-size: 28px; font-weight: 700; color: var(--dt-text-primary); font-family: var(--font-mono); line-height: 1; }
+  .dash-tile-value-trail { font-size: 11px; color: var(--dt-text-muted); }
+  .dash-tile-bar { height: 4px; border-radius: 2px; background: var(--dt-border-subtle); overflow: hidden; margin: 8px 0 8px; display: flex; }
+  .dash-tile-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 10.5px; color: var(--dt-text-muted); }
+  .dash-tile-footer .warn { color: var(--dt-warning-amber); }
+  .dash-tile-footer .crit { color: var(--dt-critical-path); }
+  .dash-tile-footer .ok { color: var(--dt-scurve-actual); }
+  .dash-chip { font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px; white-space: nowrap; letter-spacing: 0.3px; }
+  .dash-chip-red { background: var(--dt-critical-path); color: #FFF; }
+  .dash-chip-green { background: var(--dt-scurve-actual); color: #04281D; }
+  .dash-chip-amber { background: var(--dt-warning-amber); color: #3A1D02; }
+  .dash-tile-edit-btn {
+    background: transparent; border: none; color: var(--dt-text-muted); cursor: pointer; font-size: 12px; padding: 1px 4px; border-radius: 3px;
+  }
+  .dash-tile-edit-btn:hover { background: var(--dt-surface-hover); color: var(--dt-text-primary); }
+  .dash-section { background: var(--dt-surface-panel); border-radius: 10px; padding: 18px; margin-bottom: 18px; border: 1px solid var(--dt-border-subtle); }
+  .dash-section-header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .dash-section-title { font-size: 13px; font-weight: 700; color: var(--dt-text-primary); display: flex; align-items: center; gap: 6px; }
+  .dash-section-subtitle { font-size: 11px; color: var(--dt-text-muted); margin-top: 3px; font-family: var(--font-sans); }
+  .dash-section-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 10.5px; color: var(--dt-text-secondary); white-space: nowrap; }
+  .dash-section-legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .dash-legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .dash-legend-line { width: 14px; height: 2px; display: inline-block; }
+  .dash-status-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--dt-border-subtle); }
+  .dash-list { display: flex; flex-direction: column; gap: 8px; }
+  .dash-list-empty { font-size: 12px; color: var(--dt-text-muted); text-align: center; padding: 14px; font-family: var(--font-sans); }
+  .dash-two-col { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; align-items: start; }
+  .dash-risk-item {
+    padding: 10px 12px; margin-bottom: 8px; background: var(--dt-surface-base);
+    border-left: 3px solid var(--dt-critical-path); border-radius: 4px; font-size: 12px;
+  }
+  .dash-risk-item:last-child { margin-bottom: 0; }
+  .dash-risk-item-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+  .dash-risk-item-wbs { font-size: 9.5px; font-weight: 700; color: var(--dt-text-muted); background: var(--dt-surface-hover); padding: 1px 5px; border-radius: 3px; margin-right: 6px; }
+  .dash-risk-item-name { font-weight: 700; color: var(--dt-text-primary); font-family: var(--font-sans); font-size: 12.5px; }
+  .dash-risk-item-tf { font-family: var(--font-mono); font-weight: 700; font-size: 10.5px; }
+  .dash-risk-item-meta { color: var(--dt-text-secondary); font-size: 10.5px; display: flex; flex-wrap: wrap; gap: 14px; font-family: var(--font-sans); }
+  .dash-risk-item-meta span { display: inline-flex; align-items: center; gap: 4px; }
+  .dash-milestone-item { display: flex; align-items: center; gap: 10px; padding: 10px; margin-bottom: 8px; background: var(--dt-surface-base); border-radius: 6px; border: 1px solid var(--dt-border-subtle); }
+  .dash-milestone-item:last-child { margin-bottom: 0; }
+  .dash-milestone-badge {
+    flex: 0 0 40px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 5px;
+    background: var(--dt-warning-amber-bg); color: var(--dt-warning-amber); font-size: 10px; font-weight: 700; border: 1px solid var(--dt-warning-amber);
+  }
+  .dash-milestone-item-body { flex: 1; min-width: 0; }
+  .dash-milestone-item-name { font-weight: 700; font-size: 12.5px; color: var(--dt-text-primary); font-family: var(--font-sans); }
+  .dash-milestone-item-sub { font-size: 10.5px; color: var(--dt-text-muted); font-family: var(--font-sans); }
+  .dash-milestone-item-right { text-align: right; flex-shrink: 0; }
+  .dash-milestone-date { font-size: 11px; font-weight: 700; color: var(--dt-scurve-actual); }
+  .dash-milestone-countdown { font-size: 10px; color: var(--dt-text-muted); margin-top: 2px; }
+  .dash-team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .dash-team-card { background: var(--dt-surface-base); border: 1px solid var(--dt-border-subtle); border-radius: 8px; padding: 12px; }
+  .dash-team-card-top { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; font-weight: 700; color: var(--dt-text-primary); margin-bottom: 6px; font-family: var(--font-sans); }
+  .dash-team-card-count { font-size: 10.5px; color: var(--dt-text-muted); font-weight: 400; }
+  .dash-team-pct-row { font-size: 11px; color: var(--dt-text-secondary); margin-bottom: 6px; font-family: var(--font-sans); }
+  .dash-team-pct-row b { color: var(--dt-text-primary); }
+  .dash-team-progress-bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--dt-border-subtle); margin-bottom: 8px; }
+  .dash-team-card-sub { font-size: 10px; color: var(--dt-text-muted); display: flex; justify-content: space-between; }
+  .dash-team-card-sub .crit { color: var(--dt-critical-path); font-weight: 700; }
+  .dash-evm-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 14px; }
+  .dash-evm-stat { background: var(--dt-surface-base); border-radius: 6px; padding: 10px 12px; border: 1px solid var(--dt-border-subtle); }
+  .dash-evm-stat-label { font-size: 10px; color: var(--dt-text-muted); text-transform: uppercase; margin-bottom: 5px; font-family: var(--font-sans); }
+  .dash-evm-stat-value { font-size: 16px; font-weight: 700; color: var(--dt-text-primary); font-family: var(--font-mono); }
+  .dash-evm-stat-sub { font-size: 10px; color: var(--dt-text-muted); margin-top: 3px; font-family: var(--font-sans); }
+  .dash-today-callout {
+    font-size: 10px; font-family: var(--font-mono); fill: var(--dt-text-primary);
+  }
+  @media (max-width: 900px) { .dash-two-col { grid-template-columns: 1fr; } }
 
   /* Help / User Manual Left Panel (wider, detailed, scrollable with in-page TOC) */
   .help-overlay {
@@ -1055,8 +1114,11 @@
   <div class="main-split">
     <!-- Left Navigation Rail: switch between views -->
     <div class="nav-rail" id="navRail">
-      <button class="nav-rail-btn active" data-view="gantt" title="Gantt Chart">📊</button>
-      <button class="nav-rail-btn" data-view="dashboard" title="Dashboard ภาพรวมโครงการ">📈</button>
+      <button class="nav-rail-btn active" data-view="gantt" title="Gantt Chart"><span class="nav-rail-btn-icon">📊</span><span class="nav-rail-btn-label">Timeline</span></button>
+      <button class="nav-rail-btn" data-view="dashboard" title="Dashboard ภาพรวมโครงการ"><span class="nav-rail-btn-icon">📈</span><span class="nav-rail-btn-label">Progress</span></button>
+      <button class="nav-rail-btn" id="btnNavBaseline" title="Baseline Snapshots"><span class="nav-rail-btn-icon">📸</span><span class="nav-rail-btn-label">Baseline</span></button>
+      <button class="nav-rail-btn" id="btnNavCalendar" title="ตั้งค่าเวลาทำงานและวันหยุดปฏิทิน"><span class="nav-rail-btn-icon">⚙️</span><span class="nav-rail-btn-label">Calendar</span></button>
+      <button class="nav-rail-btn" id="btnNavConfig" title="เมนู / ตั้งค่าอื่นๆ"><span class="nav-rail-btn-icon">☰</span><span class="nav-rail-btn-label">Config</span></button>
     </div>
 
     <!-- Left Sidebar: Task Tree -->
@@ -1353,6 +1415,45 @@
   </div>
 </div>
 
+<!-- Project Safety & Buffer Modal Dialog -->
+<div class="modal-backdrop" id="projectSafetyModal">
+  <div class="modal-dialog">
+    <div class="modal-nav-tabs">
+      <button class="tab-btn active">🦺 Project Safety & Buffer</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section-title">Schedule Buffer (สำหรับคำนวณ Buffer Depletion)</div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label class="form-label">Project Buffer (วันทำงาน)</label>
+        <input type="number" class="form-input" id="safetyBufferDays" min="1" step="1" value="5">
+      </div>
+
+      <div class="modal-section-title">Safety & Effort Telemetry</div>
+      <div class="form-grid-2col">
+        <div class="form-group">
+          <label class="form-label">Lost Time Incidents</label>
+          <input type="number" class="form-input" id="safetyIncidents" min="0" step="1" value="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Man-Hours Logged</label>
+          <input type="number" class="form-input" id="safetyManHours" min="0" step="1" value="0">
+        </div>
+        <div class="form-group" style="grid-column: span 2;">
+          <label class="form-label">Shift Crews</label>
+          <input type="number" class="form-input" id="safetyShiftCrews" min="0" step="1" value="0">
+        </div>
+      </div>
+      <div style="font-size:11.5px; color:var(--dt-text-muted); margin-top:12px;">
+        * ค่าเหล่านี้ผู้ใช้กรอกเองตามข้อมูลจริงของโครงการ ระบบไม่ได้คำนวณอัตโนมัติจาก Task ใดๆ
+      </div>
+    </div>
+    <div class="modal-footer">
+      <div></div>
+      <button class="btn-modal primary" id="btnSaveProjectSafety">Save Settings</button>
+    </div>
+  </div>
+</div>
+
 <!-- Marks & Highlights Modal Dialog -->
 <div class="modal-backdrop" id="mhModal">
   <div class="modal-dialog" style="width:620px;">
@@ -1431,6 +1532,13 @@
     breakStart: '12:00',
     breakEnd: '13:00',
     workdays: [1, 2, 3, 4, 5] // Mon-Fri
+  };
+
+  let projectSafety = {
+    bufferDays: 5,
+    lostTimeIncidents: 0,
+    manHoursLogged: 0,
+    shiftCrews: 0
   };
 
   // --- SAMPLE PLAN BUNDLE (Project Test Function 01) ---
@@ -1642,7 +1750,7 @@
     return {
       projectName: document.getElementById('projectNameInput').value,
       tasks, baselineHistory, currentZoom, showCriticalPath, showSCurve,
-      viewMode, viewStart, viewEnd, workingCalendar, timescaleTiers
+      viewMode, viewStart, viewEnd, workingCalendar, timescaleTiers, projectSafety
     };
   }
 
@@ -1683,6 +1791,7 @@
     if(payload.showSCurve !== undefined) showSCurve = payload.showSCurve;
     if(payload.viewMode){ viewMode = payload.viewMode; viewStart = payload.viewStart; viewEnd = payload.viewEnd; }
     if(payload.workingCalendar) workingCalendar = payload.workingCalendar;
+    if(payload.projectSafety) projectSafety = { ...projectSafety, ...payload.projectSafety };
     if(payload.timescaleTiers) timescaleTiers = payload.timescaleTiers;
 
     nextId = Math.max(...tasks.map(t=>t.id), 0) + 1;
@@ -1764,7 +1873,7 @@
   // --- FULL CPM CRITICAL PATH ENGINE (FS, SS, FF, SF FULL LAG) ---
   function computeCriticalPath(){
     const validTasks = tasks.filter(t => !t.hidden && t.status !== 'cancelled' && t.type !== 'mark' && t.type !== 'highlight' && t.start && t.end);
-    if(!validTasks.length) return { criticalIds: new Set(), criticalEdges: new Set(), totalDays: 0, criticalCount: 0, minTotalFloat: 0, minFreeFloat: 0 };
+    if(!validTasks.length) return { criticalIds: new Set(), criticalEdges: new Set(), totalDays: 0, criticalCount: 0, minTotalFloat: 0, minFreeFloat: 0, taskFloats: {}, projectEndStr: null };
 
     const taskMap = {};
     validTasks.forEach(t => {
@@ -1925,7 +2034,7 @@
     }
 
     const totalDays = countWorkdaysBetween(minDateStr, projectEndStr);
-    return { criticalIds, criticalEdges, totalDays, criticalCount: criticalIds.size, minTotalFloat, minFreeFloat };
+    return { criticalIds, criticalEdges, totalDays, criticalCount: criticalIds.size, minTotalFloat, minFreeFloat, taskFloats: taskMap, projectEndStr };
   }
 
   // --- MAIN RENDERER ---
@@ -2780,6 +2889,25 @@
     return { PV, EV, AC, SPI, CPI, totalBudget };
   }
 
+  // Simplified schedule-buffer depletion metric — NOT a full CCPM engine (no per-chain feeding
+  // buffers). Compares the current CPM forecast finish against the original planned finish
+  // (max targetEnd) and expresses the slip as a % of a single user-set project buffer (days).
+  function computeBufferDepletion(cp){
+    const validTasks = tasks.filter(t => !t.hidden && t.type !== 'mark' && t.type !== 'highlight' && t.targetEnd);
+    if(!validTasks.length || !cp.projectEndStr || !projectSafety.bufferDays){
+      return { plannedFinish: null, forecastFinish: null, consumedDays: 0, pct: 0 };
+    }
+    const plannedFinish = validTasks.reduce((max, t) => {
+      const d = parseDate(t.targetEnd);
+      return (!max || d > max) ? d : max;
+    }, null);
+    const forecastFinishStr = cp.projectEndStr;
+    const forecastFinish = parseDate(forecastFinishStr);
+    const consumedDays = Math.max(0, countWorkdaysBetween(fmtDate(plannedFinish), forecastFinishStr) - 1);
+    const pct = Math.min(999, Math.round((consumedDays / projectSafety.bufferDays) * 100));
+    return { plannedFinish, forecastFinish, consumedDays, pct };
+  }
+
   function renderSCurve(min, max, dayWidth, totalWidth){
     const container = document.getElementById('scurveContainer');
     if(!showSCurve){ container.innerHTML = ''; return; }
@@ -2836,9 +2964,12 @@
     document.getElementById('dashboardView').style.display = view === 'dashboard' ? '' : 'none';
     if(view === 'dashboard') renderDashboard();
   }
-  document.querySelectorAll('.nav-rail-btn').forEach(btn => {
+  document.querySelectorAll('.nav-rail-btn[data-view]').forEach(btn => {
     btn.addEventListener('click', () => switchView(btn.dataset.view));
   });
+  document.getElementById('btnNavBaseline').addEventListener('click', () => { renderHistoryModal(); document.getElementById('historyModal').classList.add('open'); });
+  document.getElementById('btnNavCalendar').addEventListener('click', openCalendarModal);
+  document.getElementById('btnNavConfig').addEventListener('click', openDrawer);
 
   // --- DASHBOARD OVERVIEW RENDERER ---
   const DASH_STATUS_ORDER = ['completed', 'inprogress', 'delay', 'problem', 'cancelled', 'none'];
@@ -2852,47 +2983,91 @@
     const realTasks = tasks.filter(t => !t.hidden && t.type !== 'mark' && t.type !== 'highlight' && t.type !== 'milestone' && t.start && t.end);
     const today = new Date(); today.setHours(0,0,0,0);
 
-    // Overall duration-weighted progress
-    let totalDur = 0, weightedProgress = 0;
+    // Overall duration-weighted progress: Actual vs Planned (for the schedule-variance % on tile 1)
+    let totalDur = 0, weightedActual = 0, weightedPlanned = 0;
     realTasks.forEach(t => {
       const dur = countWorkdaysBetween(t.start, t.end);
       totalDur += dur;
-      weightedProgress += dur * (t.progress || 0);
+      weightedActual += dur * (t.progress || 0);
+      weightedPlanned += dur * pctAt(today, parseDate(t.targetStart || t.start), parseDate(t.targetEnd || t.end));
     });
-    const overallPct = totalDur > 0 ? Math.round(weightedProgress / totalDur) : 0;
+    const overallPct = totalDur > 0 ? Math.round(weightedActual / totalDur) : 0;
+    const plannedPct = totalDur > 0 ? Math.round(weightedPlanned / totalDur) : 0;
+    const svPct = overallPct - plannedPct;
 
-    // Status breakdown
+    // Status breakdown (3-bucket summary for the WBS Execution tile, matching the mockup)
     const statusCounts = {};
     DASH_STATUS_ORDER.forEach(s => statusCounts[s] = 0);
     realTasks.forEach(t => { statusCounts[t.status] = (statusCounts[t.status] || 0) + 1; });
     const totalTaskCount = realTasks.length || 1;
-    const statusBarHtml = DASH_STATUS_ORDER.filter(s => statusCounts[s] > 0).map(s =>
-      `<div style="width:${(statusCounts[s] / totalTaskCount * 100)}%; background:${getStatusColor(s)};" title="${DASH_STATUS_LABEL[s]}: ${statusCounts[s]}"></div>`
-    ).join('');
-    const statusLegendHtml = DASH_STATUS_ORDER.filter(s => statusCounts[s] > 0).map(s =>
-      `<span><span class="dash-status-dot" style="background:${getStatusColor(s)}"></span>${DASH_STATUS_LABEL[s]} (${statusCounts[s]})</span>`
-    ).join('');
+    const doneCount = statusCounts.completed;
+    const pendingCount = statusCounts.none;
+    const inProgCount = totalTaskCount - doneCount - pendingCount - statusCounts.cancelled;
+    const wbsBarHtml = [
+      { n: doneCount, c: getStatusColor('completed') },
+      { n: inProgCount, c: getStatusColor('inprogress') },
+      { n: pendingCount, c: getStatusColor('none') }
+    ].filter(seg => seg.n > 0).map(seg => `<div style="width:${(seg.n / totalTaskCount * 100)}%; background:${seg.c};"></div>`).join('');
 
-    // Critical path summary
     const cp = computeCriticalPath();
+    const evm = computeEVM();
+    const buf = computeBufferDepletion(cp);
+    const wbsMap = computeWBSNumbers();
+    const bufColor = buf.pct >= 100 ? 'var(--dt-critical-path)' : (buf.pct >= 60 ? 'var(--dt-warning-amber)' : 'var(--dt-scurve-actual)');
+    const bufLabel = buf.pct >= 100 ? 'Overrun' : (buf.pct >= 60 ? 'High' : (buf.pct >= 30 ? 'Medium' : 'Low'));
 
-    // Overdue tasks
-    const overdue = realTasks.filter(t => !['completed', 'cancelled'].includes(t.status) && parseDate(t.end) < today)
-      .sort((a, b) => parseDate(a.end) - parseDate(b.end));
+    // Critical Path Tasks At Risk — sorted by tightest Total Float first
+    const riskTasks = realTasks.filter(t => cp.criticalIds.has(t.id))
+      .map(t => ({ t, tf: cp.taskFloats[t.id] ? cp.taskFloats[t.id].TF : 0 }))
+      .sort((a, b) => a.tf - b.tf)
+      .slice(0, 8);
+    const riskListHtml = riskTasks.length ? riskTasks.map(({ t, tf }) => {
+      const wbs = wbsMap.get(t.id) || '-';
+      const metaParts = [];
+      if(t.owner) metaParts.push(`👤 ${escapeHtml(t.owner)}${t.team ? ` (${escapeHtml(t.team)})` : ''}`);
+      metaParts.push(`📅 Target: ${t.end}`);
+      if(t.desc) metaParts.push(escapeHtml(t.desc.length > 50 ? t.desc.slice(0, 50) + '…' : t.desc));
+      const tfColor = tf <= 0 ? 'var(--dt-critical-path)' : 'var(--dt-warning-amber)';
+      return `
+        <div class="dash-risk-item">
+          <div class="dash-risk-item-top">
+            <span><span class="dash-risk-item-wbs">WBS ${wbs}</span><span class="dash-risk-item-name">${escapeHtml(t.name)}</span></span>
+            <span class="dash-chip dash-chip-red" style="background:${tfColor};">TF: ${tf.toFixed(1)}d</span>
+          </div>
+          <div class="dash-risk-item-meta">${metaParts.map(m => `<span>${m}</span>`).join('')}</div>
+        </div>`;
+    }).join('') : '<div class="dash-list-empty">ไม่มี Task วิกฤต (เปิด Critical Path หรือยังไม่มี Total Float ≤ 0)</div>';
 
-    // Upcoming milestones
+    // Upcoming milestones & gate reviews
     const upcomingMilestones = tasks.filter(t => !t.hidden && t.type === 'milestone' && t.start && parseDate(t.start) >= today)
-      .sort((a, b) => parseDate(a.start) - parseDate(b.start)).slice(0, 5);
+      .sort((a, b) => parseDate(a.start) - parseDate(b.start)).slice(0, 6);
+    const milestoneListHtml = upcomingMilestones.length ? upcomingMilestones.map((t, idx) => {
+      const daysAway = diffDays(today, parseDate(t.start));
+      return `
+        <div class="dash-milestone-item">
+          <div class="dash-milestone-badge">M${idx + 1}</div>
+          <div class="dash-milestone-item-body">
+            <div class="dash-milestone-item-name">${escapeHtml(t.name)}</div>
+            ${t.desc ? `<div class="dash-milestone-item-sub">${escapeHtml(t.desc)}</div>` : ''}
+          </div>
+          <div class="dash-milestone-item-right">
+            <div class="dash-milestone-date">${t.start}</div>
+            <div class="dash-milestone-countdown">อีก ${daysAway} วัน</div>
+          </div>
+        </div>`;
+    }).join('') : '<div class="dash-list-empty">ไม่มี Milestone ที่ใกล้ถึง</div>';
 
-    // Standalone mini S-Curve (independent of Gantt zoom/dayWidth)
+    // Cumulative S-Curve chart (bigger, with gradient fill under Actual + a Today marker + milestone dots)
     const bounds = autoTimeBounds();
-    const chartW = 760, chartH = 150, padTop = 10, padBottom = 20, plotH = chartH - padTop - padBottom;
-    const totalDays = Math.max(1, diffDays(bounds.min, bounds.max));
+    const chartW = 900, chartH = 200, padTop = 10, padBottom = 24, plotH = chartH - padTop - padBottom;
+    const totalDaysChart = Math.max(1, diffDays(bounds.min, bounds.max));
     let totalWorkdaysSum = 0;
     realTasks.forEach(t => { totalWorkdaysSum += countWorkdaysBetween(t.start, t.end); });
     if(totalWorkdaysSum <= 0) totalWorkdaysSum = 1;
+    const xAt = i => (i / totalDaysChart) * chartW;
+    const yAt = pct => padTop + plotH - (pct / 100 * plotH);
     let plannedPts = [], actualPts = [];
-    for(let i = 0; i <= totalDays; i += Math.max(1, Math.floor(totalDays / 200))){
+    for(let i = 0; i <= totalDaysChart; i += Math.max(1, Math.floor(totalDaysChart / 200))){
       const d = addDays(bounds.min, i);
       let sumP = 0, sumA = 0;
       realTasks.forEach(t => {
@@ -2900,58 +3075,190 @@
         sumP += weight * pctAt(d, parseDate(t.targetStart || t.start), parseDate(t.targetEnd || t.end));
         sumA += weight * pctAt(d, parseDate(t.start), parseDate(t.end));
       });
-      const x = (i / totalDays) * chartW;
-      plannedPts.push(`${x.toFixed(1)},${(padTop + plotH - (sumP / 100 * plotH)).toFixed(1)}`);
-      actualPts.push(`${x.toFixed(1)},${(padTop + plotH - (sumA / 100 * plotH)).toFixed(1)}`);
+      plannedPts.push(`${xAt(i).toFixed(1)},${yAt(sumP).toFixed(1)}`);
+      actualPts.push(`${xAt(i).toFixed(1)},${yAt(sumA).toFixed(1)}`);
     }
+    const areaFillPoints = `0,${chartH} ${actualPts.join(' ')} ${chartW},${chartH}`;
     const scurveGrid = [0, 25, 50, 75, 100].map(p => {
-      const y = padTop + plotH - (p / 100 * plotH);
-      return `<line x1="0" y1="${y}" x2="${chartW}" y2="${y}" stroke="#E4E9EC" stroke-width="1"/><text x="4" y="${y - 3}" font-size="9" fill="#7F8C8D" font-family="monospace">${p}%</text>`;
+      const y = yAt(p);
+      return `<line x1="0" y1="${y}" x2="${chartW}" y2="${y}" stroke="var(--dt-border-subtle)" stroke-width="1"/><text x="4" y="${y - 3}" font-size="9" fill="var(--dt-text-muted)" font-family="monospace">${p}%</text>`;
+    }).join('');
+    let todayMarkersSvg = '';
+    if(today >= bounds.min && today <= bounds.max){
+      const tx = xAt(diffDays(bounds.min, today));
+      const ty = yAt(overallPct);
+      const boxX = Math.min(chartW - 190, Math.max(4, tx + 8));
+      todayMarkersSvg = `
+        <line x1="${tx.toFixed(1)}" y1="0" x2="${tx.toFixed(1)}" y2="${chartH}" stroke="var(--dt-critical-path)" stroke-width="1.5" stroke-dasharray="4,3"/>
+        <circle cx="${tx.toFixed(1)}" cy="${ty.toFixed(1)}" r="3.5" fill="var(--dt-critical-path)"/>
+        <g class="dash-today-callout">
+          <rect x="${boxX.toFixed(1)}" y="4" width="186" height="34" rx="4" fill="var(--dt-surface-base)" stroke="var(--dt-border-strong)"/>
+          <text x="${(boxX + 8).toFixed(1)}" y="17" fill="var(--dt-critical-path)" font-weight="700">● Today: ${fmtDate(today)}</text>
+          <text x="${(boxX + 8).toFixed(1)}" y="30" fill="var(--dt-text-secondary)">Act: ${overallPct}%  Plan: ${plannedPct}%  Δ ${svPct >= 0 ? '+' : ''}${svPct}%</text>
+        </g>`;
+    }
+    const milestoneDotsSvg = upcomingMilestones.map((t, idx) => {
+      const mi = diffDays(bounds.min, parseDate(t.start));
+      if(mi < 0 || mi > totalDaysChart) return '';
+      const mx = xAt(mi);
+      return `<circle cx="${mx.toFixed(1)}" cy="${padTop}" r="3" fill="var(--dt-warning-amber)"/><text x="${mx.toFixed(1)}" y="${padTop - 4}" font-size="8" fill="var(--dt-warning-amber)" font-family="monospace" text-anchor="middle">M${idx + 1}</text>`;
     }).join('');
 
-    const overdueListHtml = overdue.length ? overdue.map(t => {
-      const daysLate = diffDays(parseDate(t.end), today);
-      return `<div class="dash-list-item"><span>${escapeHtml(t.name)}</span><span class="dash-badge" style="background:var(--status-problem)">ช้า ${daysLate} วัน</span></div>`;
-    }).join('') : '<div class="dash-list-empty">ไม่มี Task ที่เลยกำหนด 🎉</div>';
+    // Task Distribution & Workload — dynamic grouping by the Team field (no data on real work-hours per task,
+    // so this shows total scheduled working days instead of pretending to have man-hour precision)
+    const teamGroups = {};
+    realTasks.forEach(t => {
+      const key = (t.team && t.team.trim()) ? t.team.trim() : 'ไม่ระบุทีม';
+      if(!teamGroups[key]) teamGroups[key] = { tasks: 0, totalDur: 0, weighted: 0, done: 0, inprog: 0, pending: 0, crit: 0 };
+      const g = teamGroups[key];
+      const dur = countWorkdaysBetween(t.start, t.end);
+      g.tasks++; g.totalDur += dur; g.weighted += dur * (t.progress || 0);
+      if(t.status === 'completed') g.done++;
+      else if(t.status === 'none') g.pending++;
+      else g.inprog++;
+      if(cp.criticalIds.has(t.id)) g.crit++;
+    });
+    const teamCardsHtml = Object.keys(teamGroups).sort().map(key => {
+      const g = teamGroups[key];
+      const pct = g.totalDur > 0 ? Math.round(g.weighted / g.totalDur) : 0;
+      return `
+        <div class="dash-team-card">
+          <div class="dash-team-card-top"><span>👷 ${escapeHtml(key)}</span><span class="dash-team-card-count">${g.tasks} Tasks</span></div>
+          <div class="dash-team-pct-row"><b>${pct}%</b> Complete · ${g.done} เสร็จ / ${g.inprog} ดำเนินการ / ${g.pending} รอ</div>
+          <div class="dash-team-progress-bar">
+            <div style="width:${g.done / g.tasks * 100}%; background:${getStatusColor('completed')}"></div>
+            <div style="width:${g.inprog / g.tasks * 100}%; background:${getStatusColor('inprogress')}"></div>
+            <div style="width:${g.pending / g.tasks * 100}%; background:${getStatusColor('none')}"></div>
+          </div>
+          <div class="dash-team-card-sub"><span>${g.totalDur} วันทำงานรวม</span><span class="${g.crit ? 'crit' : ''}">${g.crit} on Crit-Path</span></div>
+        </div>`;
+    }).join('') || '<div class="dash-list-empty">ไม่มี Task</div>';
 
-    const milestoneListHtml = upcomingMilestones.length ? upcomingMilestones.map(t => {
-      const daysAway = diffDays(today, parseDate(t.start));
-      return `<div class="dash-list-item"><span>${escapeHtml(t.name)}</span><span class="dash-badge" style="background:var(--status-completed)">อีก ${daysAway} วัน (${t.start})</span></div>`;
-    }).join('') : '<div class="dash-list-empty">ไม่มี Milestone ที่ใกล้ถึง</div>';
+    const svDollar = evm.EV - evm.PV;
+    const svChangeColor = svDollar < 0 ? 'var(--dt-critical-path)' : 'var(--dt-scurve-actual)';
+    const svPctColor = svPct < 0 ? 'var(--dt-warning-amber)' : 'var(--dt-scurve-actual)';
 
     container.innerHTML = `
       <div class="dash-grid">
-        <div class="dash-tile"><div class="dash-tile-label">ความคืบหน้ารวม</div><div class="dash-tile-value">${overallPct}%</div><div class="dash-tile-sub">Duration-Weighted</div></div>
-        <div class="dash-tile"><div class="dash-tile-label">Task ทั้งหมด</div><div class="dash-tile-value">${realTasks.length}</div><div class="dash-tile-sub">ไม่รวม Mark/Highlight/Milestone</div></div>
-        <div class="dash-tile"><div class="dash-tile-label">Critical Path</div><div class="dash-tile-value">${cp.totalDays}</div><div class="dash-tile-sub">วัน (${cp.criticalCount} งานวิกฤต)</div></div>
-        <div class="dash-tile"><div class="dash-tile-label">เลยกำหนด</div><div class="dash-tile-value" style="color:${overdue.length ? 'var(--status-problem)' : 'var(--status-completed)'}">${overdue.length}</div><div class="dash-tile-sub">Task ที่ค้าง</div></div>
+        <div class="dash-tile">
+          <div class="dash-tile-label"><span>Overall Progress (S-Curve)</span></div>
+          <div class="dash-tile-value-row"><span class="dash-tile-value">${overallPct}%</span><span class="dash-tile-value-trail">Plan: ${plannedPct}%</span></div>
+          <div class="dash-tile-bar"><div style="width:${overallPct}%; background:${svPctColor};"></div></div>
+          <div class="dash-tile-footer">
+            <span class="${svPct < 0 ? 'warn' : 'ok'}">${svPct < 0 ? '⚠' : '✓'} SV: ${svPct >= 0 ? '+' : ''}${svPct}% ${svPct < 0 ? 'Behind Schedule' : 'On/Ahead'}</span>
+            <span>${evm.SPI != null ? `SPI: ${evm.SPI.toFixed(2)}` : 'SPI: -'}</span>
+          </div>
+        </div>
+        <div class="dash-tile">
+          <div class="dash-tile-label"><span>Critical Path Status</span><span class="dash-chip dash-chip-red">TF ≤ 0</span></div>
+          <div class="dash-tile-value-row"><span class="dash-tile-value">${cp.criticalCount}</span><span class="dash-tile-value-trail">Tasks · Longest: ${cp.totalDays}d</span></div>
+          <div class="dash-tile-bar"><div style="width:${Math.min(100, buf.pct)}%; background:${bufColor};"></div></div>
+          <div class="dash-tile-footer">
+            <span style="color:${bufColor};">🔥 Buffer Depletion ${bufLabel}</span>
+            <span>${cp.projectEndStr ? `Forecast: ${cp.projectEndStr}` : '-'}</span>
+          </div>
+        </div>
+        <div class="dash-tile">
+          <div class="dash-tile-label"><span>WBS Execution Status</span></div>
+          <div class="dash-tile-value-row"><span class="dash-tile-value">${totalTaskCount}</span><span class="dash-tile-value-trail">Total · ${doneCount} Done</span></div>
+          <div class="dash-tile-bar" style="height:8px;">${wbsBarHtml}</div>
+          <div class="dash-tile-footer">
+            <span>${doneCount} เสร็จ</span><span>${inProgCount} ดำเนินการ</span><span>${pendingCount} รอ</span>
+          </div>
+        </div>
+        <div class="dash-tile">
+          <div class="dash-tile-label">
+            <span>Safety & Effort</span>
+            <span style="display:flex; align-items:center; gap:4px;">
+              ${projectSafety.lostTimeIncidents === 0 ? '<span class="dash-chip dash-chip-green">LTI FREE</span>' : `<span class="dash-chip dash-chip-red">${projectSafety.lostTimeIncidents} LTI</span>`}
+              <button type="button" class="dash-tile-edit-btn" id="btnOpenProjectSafety" title="แก้ไขข้อมูล Safety & Buffer">✏️</button>
+            </span>
+          </div>
+          <div class="dash-tile-value-row"><span class="dash-tile-value">${projectSafety.manHoursLogged.toLocaleString()}</span><span class="dash-tile-value-trail">MH Logged</span></div>
+          <div class="dash-tile-bar"><div style="width:100%; background:var(--dt-scurve-actual);"></div></div>
+          <div class="dash-tile-footer">
+            <span>🛡 ${projectSafety.lostTimeIncidents} Lost Time Incidents</span><span>${projectSafety.shiftCrews} Shift Crews</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="dash-two-col">
+        <div class="dash-section">
+          <div class="dash-section-header-row">
+            <div>
+              <div class="dash-section-title">📈 Cumulative S-Curve Progress</div>
+              <div class="dash-section-subtitle">Planned Progress Envelope vs Recorded Actual Execution</div>
+            </div>
+            <div class="dash-section-legend">
+              <span><span class="dash-legend-line" style="border-top:2px dashed var(--dt-scurve-planned); height:0;"></span>Planned</span>
+              <span><span class="dash-legend-line" style="background:var(--dt-scurve-actual);"></span>Actual</span>
+            </div>
+          </div>
+          <svg width="100%" viewBox="0 0 ${chartW} ${chartH}" preserveAspectRatio="none" style="max-width:100%;">
+            <defs>
+              <linearGradient id="dashAreaFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="var(--dt-scurve-actual)" stop-opacity="0.35"/>
+                <stop offset="100%" stop-color="var(--dt-scurve-actual)" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            ${scurveGrid}
+            <polygon points="${areaFillPoints}" fill="url(#dashAreaFill)"/>
+            <polyline points="${plannedPts.join(' ')}" fill="none" stroke="var(--dt-scurve-planned)" stroke-width="2" stroke-dasharray="5,4"/>
+            <polyline points="${actualPts.join(' ')}" fill="none" stroke="var(--dt-scurve-actual)" stroke-width="2.5"/>
+            ${milestoneDotsSvg}
+            ${todayMarkersSvg}
+          </svg>
+          <div class="dash-evm-row">
+            <div class="dash-evm-stat"><div class="dash-evm-stat-label">Earned Value (EV)</div><div class="dash-evm-stat-value">฿${Math.round(evm.EV).toLocaleString()}</div></div>
+            <div class="dash-evm-stat"><div class="dash-evm-stat-label">Planned Value (PV)</div><div class="dash-evm-stat-value">฿${Math.round(evm.PV).toLocaleString()}</div></div>
+            <div class="dash-evm-stat">
+              <div class="dash-evm-stat-label">Schedule Variance (SV)</div>
+              <div class="dash-evm-stat-value" style="color:${svChangeColor}">฿${Math.round(svDollar).toLocaleString()}</div>
+              <div class="dash-evm-stat-sub">${svPct >= 0 ? 'On/Ahead' : `Delay: ~${Math.abs(svPct)}% Progress`}</div>
+            </div>
+            <div class="dash-evm-stat">
+              <div class="dash-evm-stat-label">Cost Efficiency (CPI)</div>
+              <div class="dash-evm-stat-value">${evm.CPI != null ? (evm.CPI * 100).toFixed(1) + '%' : '-'}</div>
+              <div class="dash-evm-stat-sub">${evm.CPI == null ? 'ยังไม่มี Actual Cost' : (evm.CPI >= 1 ? 'Under Budget' : 'Over Budget')}</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:18px;">
+          <div class="dash-section">
+            <div class="dash-section-header-row">
+              <div>
+                <div class="dash-section-title">🔴 Critical Path Tasks At Risk</div>
+                <div class="dash-section-subtitle">Tasks on the zero-float driving path requiring priority attention</div>
+              </div>
+              <span class="dash-chip dash-chip-red">Total Float ≤ 0d</span>
+            </div>
+            <div class="dash-list">${riskListHtml}</div>
+          </div>
+          <div class="dash-section">
+            <div class="dash-section-header-row">
+              <div class="dash-section-title">🚩 Upcoming Milestones & Gate Reviews</div>
+              <span class="dash-section-subtitle">Stage-Gate Protocols</span>
+            </div>
+            <div class="dash-list">${milestoneListHtml}</div>
+          </div>
+        </div>
       </div>
 
       <div class="dash-section">
-        <div class="dash-section-title">📊 สถานะ Task ทั้งหมด</div>
-        <div class="dash-status-bar">${statusBarHtml}</div>
-        <div class="dash-status-legend">${statusLegendHtml}</div>
-      </div>
-
-      <div class="dash-section">
-        <div class="dash-section-title">📈 S-Curve ภาพรวมทั้งโครงการ</div>
-        <svg width="100%" viewBox="0 0 ${chartW} ${chartH}" preserveAspectRatio="none" style="max-width:100%;">
-          ${scurveGrid}
-          <polyline points="${plannedPts.join(' ')}" fill="none" stroke="#95A5A6" stroke-width="2" stroke-dasharray="5,4"/>
-          <polyline points="${actualPts.join(' ')}" fill="none" stroke="#3498DB" stroke-width="2.5"/>
-        </svg>
-      </div>
-
-      <div class="dash-section">
-        <div class="dash-section-title">⚠️ Task ที่เลยกำหนด (Overdue)</div>
-        <div class="dash-list">${overdueListHtml}</div>
-      </div>
-
-      <div class="dash-section">
-        <div class="dash-section-title">♦️ Milestone ที่ใกล้ถึง</div>
-        <div class="dash-list">${milestoneListHtml}</div>
+        <div class="dash-section-header-row">
+          <div class="dash-section-title">👥 Task Distribution & Workload by Team</div>
+          <div class="dash-section-legend">
+            <span><span class="dash-legend-dot" style="background:${getStatusColor('completed')}"></span>Completed</span>
+            <span><span class="dash-legend-dot" style="background:${getStatusColor('inprogress')}"></span>In Progress</span>
+            <span><span class="dash-legend-dot" style="background:${getStatusColor('none')}"></span>Planned/Pending</span>
+          </div>
+        </div>
+        <div class="dash-team-grid">${teamCardsHtml}</div>
       </div>
     `;
+
+    document.getElementById('btnOpenProjectSafety').addEventListener('click', openProjectSafetyModal);
   }
 
   // --- TIMESCALE MODAL CONTROLLER ---
@@ -3352,6 +3659,25 @@
 
   document.getElementById('btnOpenCalendar').addEventListener('click', openCalendarModal);
   document.getElementById('menuOpenCalendar').addEventListener('click', () => { closeDrawer(); openCalendarModal(); });
+
+  // --- PROJECT SAFETY & BUFFER MODAL CONTROLLER ---
+  function openProjectSafetyModal(){
+    document.getElementById('safetyBufferDays').value = projectSafety.bufferDays;
+    document.getElementById('safetyIncidents').value = projectSafety.lostTimeIncidents;
+    document.getElementById('safetyManHours').value = projectSafety.manHoursLogged;
+    document.getElementById('safetyShiftCrews').value = projectSafety.shiftCrews;
+    document.getElementById('projectSafetyModal').classList.add('open');
+  }
+
+  document.getElementById('btnSaveProjectSafety').addEventListener('click', () => {
+    projectSafety.bufferDays = Math.max(1, parseInt(document.getElementById('safetyBufferDays').value, 10) || 5);
+    projectSafety.lostTimeIncidents = Math.max(0, parseInt(document.getElementById('safetyIncidents').value, 10) || 0);
+    projectSafety.manHoursLogged = Math.max(0, parseInt(document.getElementById('safetyManHours').value, 10) || 0);
+    projectSafety.shiftCrews = Math.max(0, parseInt(document.getElementById('safetyShiftCrews').value, 10) || 0);
+    document.getElementById('projectSafetyModal').classList.remove('open');
+    saveToStorage();
+    if(currentView === 'dashboard') renderDashboard();
+  });
 
   // --- MARKS & HIGHLIGHTS BULK MODAL CONTROLLER WITH HIDE TOGGLE ---
   function renderMHModal(){

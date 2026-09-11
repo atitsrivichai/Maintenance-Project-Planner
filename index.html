@@ -640,11 +640,20 @@
     width: 100%; padding: 7px 10px; border: 1px solid var(--dt-border-strong); border-radius: 5px; font-size: 13px;
     font-family: var(--font-sans); outline: none; transition: border-color 0.15s;
     background: var(--dt-surface-base); color: var(--dt-text-primary);
+    color-scheme: dark;
   }
   .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--dt-primary); }
 
   .color-picker-box { display: flex; align-items: center; gap: 8px; }
   .color-picker-box input[type="color"] { width: 34px; height: 32px; border: 1px solid var(--dt-border-strong); border-radius: 5px; padding: 0; cursor: pointer; background: var(--dt-surface-base); }
+
+  .date-input-row { display: flex; gap: 6px; }
+  .date-input-row .form-input { flex: 1; min-width: 0; }
+  .btn-date-pick {
+    flex: 0 0 32px; width: 32px; border: 1px solid var(--dt-border-strong); border-radius: 5px;
+    background: var(--dt-surface-base); color: var(--dt-text-secondary); cursor: pointer; font-size: 13px;
+  }
+  .btn-date-pick:hover { background: var(--dt-surface-hover); color: var(--dt-text-primary); }
 
   .date-calculation-row {
     display: flex; align-items: center; gap: 8px; background: var(--dt-surface-base); padding: 10px; border-radius: 6px; border: 1px solid var(--dt-border-subtle);
@@ -1128,24 +1137,24 @@
     </div>
 
     <div class="modal-body">
-      <div class="form-grid-2col">
-        <div class="form-group color-picker-box" style="grid-column:span 1; flex:0 0 auto;">
+      <div class="form-row">
+        <div class="form-group color-picker-box" style="flex:0 0 auto;">
           <label class="form-label">Color</label>
           <input type="color" id="modalColor" value="#3498DB">
         </div>
-        <div class="form-group" style="grid-column: span 2;">
+        <div class="form-group" style="flex:1;">
           <label class="form-label">Task Name / Description</label>
           <input type="text" class="form-input" id="modalName" placeholder="ระบุชื่อ Task...">
         </div>
-        <div class="form-group">
-          <label class="form-label">Type (ประเภทรายการ)</label>
-          <select class="form-select" id="modalType">
-            <option value="task">📦 Task (งานทั่วไป)</option>
-            <option value="milestone">♦️ Milestone (จุดส่งมอบ)</option>
-            <option value="mark">📍 Mark (จุดหมายแนวตั้ง)</option>
-            <option value="highlight">🎨 Highlight (แถบช่วงเวลา)</option>
-          </select>
-        </div>
+      </div>
+      <div class="form-group" style="margin-top:12px;">
+        <label class="form-label">Type (ประเภทรายการ)</label>
+        <select class="form-select" id="modalType">
+          <option value="task">📦 Task (งานทั่วไป)</option>
+          <option value="milestone">♦️ Milestone (จุดส่งมอบ)</option>
+          <option value="mark">📍 Mark (จุดหมายแนวตั้ง)</option>
+          <option value="highlight">🎨 Highlight (แถบช่วงเวลา)</option>
+        </select>
       </div>
 
       <div class="form-group" style="margin-top:12px;">
@@ -1158,7 +1167,10 @@
       <div class="date-calculation-row" style="margin-top:12px;">
         <div class="form-group" id="groupStart">
           <label class="form-label" id="labelStart">Start Date</label>
-          <input type="date" class="form-input" id="modalStart">
+          <div class="date-input-row">
+            <input type="date" class="form-input" id="modalStart">
+            <button type="button" class="btn-date-pick" data-target="modalStart" title="เลือกวันที่จากปฏิทิน">📅</button>
+          </div>
         </div>
         <span class="arrow-icon date-arrow-icon" id="arrow1">→</span>
         <div class="form-group" id="groupWeekdays" style="flex:0 0 130px;">
@@ -1170,7 +1182,10 @@
         <span class="arrow-icon date-arrow-icon" id="arrow2">→</span>
         <div class="form-group" id="groupEnd">
           <label class="form-label">Finish Date</label>
-          <input type="date" class="form-input" id="modalEnd">
+          <div class="date-input-row">
+            <input type="date" class="form-input" id="modalEnd">
+            <button type="button" class="btn-date-pick" data-target="modalEnd" title="เลือกวันที่จากปฏิทิน">📅</button>
+          </div>
         </div>
       </div>
 
@@ -3119,6 +3134,13 @@
   document.getElementById('btnDepsAddLink').addEventListener('click', addDepFromInput);
   document.getElementById('modalDepsAddInput').addEventListener('keydown', e => {
     if(e.key === 'Enter'){ e.preventDefault(); addDepFromInput(); }
+  });
+
+  document.querySelectorAll('.btn-date-pick').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const inp = document.getElementById(btn.dataset.target);
+      if(inp.showPicker) inp.showPicker(); else inp.focus();
+    });
   });
 
   document.getElementById('modalProgressRange').addEventListener('input', e => {

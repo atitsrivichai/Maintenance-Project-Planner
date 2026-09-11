@@ -431,14 +431,15 @@
   .task-node.cp-dimmed { opacity: 0.3; }
 
   .node-wbs {
-    width: 34px; flex-shrink: 0; font-family: var(--font-mono); font-size: 10px; color: var(--dt-text-muted);
+    width: 34px; flex-shrink: 0; margin-right: 4px; font-family: var(--font-mono); font-size: 10px; color: var(--dt-text-muted);
   }
   .node-dur, .node-pct, .node-dep {
     width: 32px; flex-shrink: 0; text-align: right; font-family: var(--font-mono); font-size: 10px;
-    color: var(--dt-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 2px;
+    color: var(--dt-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    margin-right: 8px; padding-right: 2px;
   }
   .node-pct { font-weight: 700; color: var(--dt-text-primary); }
-  .node-dep { width: 40px; color: var(--dt-scurve-planned); }
+  .node-dep { width: 40px; margin-right: 0; color: var(--dt-scurve-planned); }
 
   .drag-handle {
     cursor: grab; color: var(--dt-text-muted); font-size: 13px; margin-right: 3px; padding: 2px; display: inline-flex; align-items: center;
@@ -1008,13 +1009,13 @@
     <div class="task-sidebar" id="taskSidebar">
       <div class="sidebar-header" id="sidebarHeaderEl">
         <div class="sidebar-header-cols">
-          <span class="col-label" style="width:34px;">WBS</span>
+          <span class="col-label" style="width:34px; margin-right:4px;">WBS</span>
           <span class="col-label col-name" title="Task Name (ลาก ⋮⋮ สลับ/ทำ Sub-task)">TASK NAME</span>
-          <span class="col-label" style="width:32px; text-align:right;">Dur</span>
-          <span class="col-label" style="width:32px; text-align:right;">%</span>
+          <span class="col-label" style="width:32px; margin-right:8px; text-align:right;">Dur</span>
+          <span class="col-label" style="width:32px; margin-right:8px; text-align:right;">%</span>
           <span class="col-label" style="width:40px; text-align:right;">Dep</span>
         </div>
-        <button class="btn-node-opt" id="btnAddTopTask" style="font-weight:bold; color:var(--amber-primary); flex-shrink:0; margin-left:6px;" title="เพิ่ม Task ใหม่">+ Task</button>
+        <button class="btn-node-opt" id="btnAddTopTask" style="font-weight:bold; color:var(--amber-primary); flex-shrink:0; margin-left:10px;" title="เพิ่ม Task ใหม่">+ Task</button>
       </div>
       <div class="task-tree-container" id="taskTreeContainer"></div>
     </div>

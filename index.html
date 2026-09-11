@@ -296,13 +296,15 @@
     grid-column: 1; grid-row: 1;
     background: var(--dt-surface-panel); border-right: 1px solid var(--dt-border-subtle);
     display: flex; flex-direction: column;
-    align-items: center; padding: 10px 0; gap: 6px; z-index: 11;
+    align-items: center; padding: 10px 0; gap: 4px; z-index: 11;
   }
   .nav-rail-btn {
-    width: 38px; height: 38px; border-radius: 8px; border: none; background: transparent;
-    color: var(--dt-text-secondary); font-size: 18px; cursor: pointer; display: flex; align-items: center;
-    justify-content: center; transition: all 0.15s;
+    width: 48px; height: 46px; border-radius: 8px; border: none; background: transparent;
+    color: var(--dt-text-secondary); cursor: pointer; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 3px; transition: all 0.15s;
   }
+  .nav-rail-btn-icon { font-size: 16px; line-height: 1; }
+  .nav-rail-btn-label { font-size: 8px; font-weight: 700; letter-spacing: 0.3px; text-transform: uppercase; font-family: var(--font-mono); }
   .nav-rail-btn:hover { background: var(--dt-surface-hover); color: var(--dt-text-primary); }
   .nav-rail-btn.active { background: var(--dt-primary); color: #FFF; }
 
@@ -1112,8 +1114,11 @@
   <div class="main-split">
     <!-- Left Navigation Rail: switch between views -->
     <div class="nav-rail" id="navRail">
-      <button class="nav-rail-btn active" data-view="gantt" title="Gantt Chart">📊</button>
-      <button class="nav-rail-btn" data-view="dashboard" title="Dashboard ภาพรวมโครงการ">📈</button>
+      <button class="nav-rail-btn active" data-view="gantt" title="Gantt Chart"><span class="nav-rail-btn-icon">📊</span><span class="nav-rail-btn-label">Timeline</span></button>
+      <button class="nav-rail-btn" data-view="dashboard" title="Dashboard ภาพรวมโครงการ"><span class="nav-rail-btn-icon">📈</span><span class="nav-rail-btn-label">Progress</span></button>
+      <button class="nav-rail-btn" id="btnNavBaseline" title="Baseline Snapshots"><span class="nav-rail-btn-icon">📸</span><span class="nav-rail-btn-label">Baseline</span></button>
+      <button class="nav-rail-btn" id="btnNavCalendar" title="ตั้งค่าเวลาทำงานและวันหยุดปฏิทิน"><span class="nav-rail-btn-icon">⚙️</span><span class="nav-rail-btn-label">Calendar</span></button>
+      <button class="nav-rail-btn" id="btnNavConfig" title="เมนู / ตั้งค่าอื่นๆ"><span class="nav-rail-btn-icon">☰</span><span class="nav-rail-btn-label">Config</span></button>
     </div>
 
     <!-- Left Sidebar: Task Tree -->
@@ -2959,9 +2964,12 @@
     document.getElementById('dashboardView').style.display = view === 'dashboard' ? '' : 'none';
     if(view === 'dashboard') renderDashboard();
   }
-  document.querySelectorAll('.nav-rail-btn').forEach(btn => {
+  document.querySelectorAll('.nav-rail-btn[data-view]').forEach(btn => {
     btn.addEventListener('click', () => switchView(btn.dataset.view));
   });
+  document.getElementById('btnNavBaseline').addEventListener('click', () => { renderHistoryModal(); document.getElementById('historyModal').classList.add('open'); });
+  document.getElementById('btnNavCalendar').addEventListener('click', openCalendarModal);
+  document.getElementById('btnNavConfig').addEventListener('click', openDrawer);
 
   // --- DASHBOARD OVERVIEW RENDERER ---
   const DASH_STATUS_ORDER = ['completed', 'inprogress', 'delay', 'problem', 'cancelled', 'none'];
@@ -3174,64 +3182,66 @@
         </div>
       </div>
 
-      <div class="dash-section">
-        <div class="dash-section-header-row">
-          <div>
-            <div class="dash-section-title">📈 Cumulative S-Curve Progress</div>
-            <div class="dash-section-subtitle">Planned Progress Envelope vs Recorded Actual Execution</div>
-          </div>
-          <div class="dash-section-legend">
-            <span><span class="dash-legend-line" style="border-top:2px dashed var(--dt-scurve-planned); height:0;"></span>Planned</span>
-            <span><span class="dash-legend-line" style="background:var(--dt-scurve-actual);"></span>Actual</span>
-          </div>
-        </div>
-        <svg width="100%" viewBox="0 0 ${chartW} ${chartH}" preserveAspectRatio="none" style="max-width:100%;">
-          <defs>
-            <linearGradient id="dashAreaFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="var(--dt-scurve-actual)" stop-opacity="0.35"/>
-              <stop offset="100%" stop-color="var(--dt-scurve-actual)" stop-opacity="0"/>
-            </linearGradient>
-          </defs>
-          ${scurveGrid}
-          <polygon points="${areaFillPoints}" fill="url(#dashAreaFill)"/>
-          <polyline points="${plannedPts.join(' ')}" fill="none" stroke="var(--dt-scurve-planned)" stroke-width="2" stroke-dasharray="5,4"/>
-          <polyline points="${actualPts.join(' ')}" fill="none" stroke="var(--dt-scurve-actual)" stroke-width="2.5"/>
-          ${milestoneDotsSvg}
-          ${todayMarkersSvg}
-        </svg>
-        <div class="dash-evm-row">
-          <div class="dash-evm-stat"><div class="dash-evm-stat-label">Earned Value (EV)</div><div class="dash-evm-stat-value">฿${Math.round(evm.EV).toLocaleString()}</div></div>
-          <div class="dash-evm-stat"><div class="dash-evm-stat-label">Planned Value (PV)</div><div class="dash-evm-stat-value">฿${Math.round(evm.PV).toLocaleString()}</div></div>
-          <div class="dash-evm-stat">
-            <div class="dash-evm-stat-label">Schedule Variance (SV)</div>
-            <div class="dash-evm-stat-value" style="color:${svChangeColor}">฿${Math.round(svDollar).toLocaleString()}</div>
-            <div class="dash-evm-stat-sub">${svPct >= 0 ? 'On/Ahead' : `Delay: ~${Math.abs(svPct)}% Progress`}</div>
-          </div>
-          <div class="dash-evm-stat">
-            <div class="dash-evm-stat-label">Cost Efficiency (CPI)</div>
-            <div class="dash-evm-stat-value">${evm.CPI != null ? (evm.CPI * 100).toFixed(1) + '%' : '-'}</div>
-            <div class="dash-evm-stat-sub">${evm.CPI == null ? 'ยังไม่มี Actual Cost' : (evm.CPI >= 1 ? 'Under Budget' : 'Over Budget')}</div>
-          </div>
-        </div>
-      </div>
-
       <div class="dash-two-col">
         <div class="dash-section">
           <div class="dash-section-header-row">
             <div>
-              <div class="dash-section-title">🔴 Critical Path Tasks At Risk</div>
-              <div class="dash-section-subtitle">Tasks on the zero-float driving path requiring priority attention</div>
+              <div class="dash-section-title">📈 Cumulative S-Curve Progress</div>
+              <div class="dash-section-subtitle">Planned Progress Envelope vs Recorded Actual Execution</div>
             </div>
-            <span class="dash-chip dash-chip-red">Total Float ≤ 0d</span>
+            <div class="dash-section-legend">
+              <span><span class="dash-legend-line" style="border-top:2px dashed var(--dt-scurve-planned); height:0;"></span>Planned</span>
+              <span><span class="dash-legend-line" style="background:var(--dt-scurve-actual);"></span>Actual</span>
+            </div>
           </div>
-          <div class="dash-list">${riskListHtml}</div>
+          <svg width="100%" viewBox="0 0 ${chartW} ${chartH}" preserveAspectRatio="none" style="max-width:100%;">
+            <defs>
+              <linearGradient id="dashAreaFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="var(--dt-scurve-actual)" stop-opacity="0.35"/>
+                <stop offset="100%" stop-color="var(--dt-scurve-actual)" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            ${scurveGrid}
+            <polygon points="${areaFillPoints}" fill="url(#dashAreaFill)"/>
+            <polyline points="${plannedPts.join(' ')}" fill="none" stroke="var(--dt-scurve-planned)" stroke-width="2" stroke-dasharray="5,4"/>
+            <polyline points="${actualPts.join(' ')}" fill="none" stroke="var(--dt-scurve-actual)" stroke-width="2.5"/>
+            ${milestoneDotsSvg}
+            ${todayMarkersSvg}
+          </svg>
+          <div class="dash-evm-row">
+            <div class="dash-evm-stat"><div class="dash-evm-stat-label">Earned Value (EV)</div><div class="dash-evm-stat-value">฿${Math.round(evm.EV).toLocaleString()}</div></div>
+            <div class="dash-evm-stat"><div class="dash-evm-stat-label">Planned Value (PV)</div><div class="dash-evm-stat-value">฿${Math.round(evm.PV).toLocaleString()}</div></div>
+            <div class="dash-evm-stat">
+              <div class="dash-evm-stat-label">Schedule Variance (SV)</div>
+              <div class="dash-evm-stat-value" style="color:${svChangeColor}">฿${Math.round(svDollar).toLocaleString()}</div>
+              <div class="dash-evm-stat-sub">${svPct >= 0 ? 'On/Ahead' : `Delay: ~${Math.abs(svPct)}% Progress`}</div>
+            </div>
+            <div class="dash-evm-stat">
+              <div class="dash-evm-stat-label">Cost Efficiency (CPI)</div>
+              <div class="dash-evm-stat-value">${evm.CPI != null ? (evm.CPI * 100).toFixed(1) + '%' : '-'}</div>
+              <div class="dash-evm-stat-sub">${evm.CPI == null ? 'ยังไม่มี Actual Cost' : (evm.CPI >= 1 ? 'Under Budget' : 'Over Budget')}</div>
+            </div>
+          </div>
         </div>
-        <div class="dash-section">
-          <div class="dash-section-header-row">
-            <div class="dash-section-title">🚩 Upcoming Milestones & Gate Reviews</div>
-            <span class="dash-section-subtitle">Stage-Gate Protocols</span>
+
+        <div style="display:flex; flex-direction:column; gap:18px;">
+          <div class="dash-section">
+            <div class="dash-section-header-row">
+              <div>
+                <div class="dash-section-title">🔴 Critical Path Tasks At Risk</div>
+                <div class="dash-section-subtitle">Tasks on the zero-float driving path requiring priority attention</div>
+              </div>
+              <span class="dash-chip dash-chip-red">Total Float ≤ 0d</span>
+            </div>
+            <div class="dash-list">${riskListHtml}</div>
           </div>
-          <div class="dash-list">${milestoneListHtml}</div>
+          <div class="dash-section">
+            <div class="dash-section-header-row">
+              <div class="dash-section-title">🚩 Upcoming Milestones & Gate Reviews</div>
+              <span class="dash-section-subtitle">Stage-Gate Protocols</span>
+            </div>
+            <div class="dash-list">${milestoneListHtml}</div>
+          </div>
         </div>
       </div>
 

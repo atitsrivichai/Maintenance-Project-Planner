@@ -26,21 +26,35 @@
     .cp-info-banner#cpInfoBanner        ← แบนเนอร์สรุป Critical Path
     .compare-info-banner#compareInfoBanner      ← แบนเนอร์โหมดเทียบ Baseline
     .main-split (CSS grid 2 แถว)
-      .nav-rail#navRail                 ← rail ไอคอนซ้ายสุด สลับ view (Gantt/Dashboard)
+      .nav-rail#navRail                 ← rail ไอคอนซ้ายสุด สลับ 5 view: Timeline(gantt)/Progress(dashboard)/
+                                            Baseline/Calendar/Config (Config เปิด modal ไม่ใช่สลับ view)
       .task-sidebar#taskSidebar → .task-tree-container#taskTreeContainer  ← ต้นไม้ Task ฝั่งซ้าย
       .timeline-wrapper#timelineWrapper
         .timeline-header-clip → .timeline-header-sticky   ← หัวตารางวันที่ (fixed, ไม่ scroll เอง)
         .timeline-scroll-body#timelineScrollBody → .timeline-body-area#timelineBodyArea + <svg#dependencySvg>
       .scurve-row-spacer#scurveRowSpacer + .scurve-clip#scurveClip → #scurveContainer   ← แผง S-Curve
-      .dashboard-view#dashboardView     ← หน้า Dashboard (ซ่อนเมื่อไม่ได้เลือก)
+      .dashboard-view#dashboardView     ← หน้า Progress/Dashboard (ซ่อนเมื่อไม่ได้เลือก)
+      .dashboard-view#baselineView      ← หน้า Baseline History & Comparison แบบเต็มหน้า (reuse class เดียวกัน)
+      .dashboard-view#calendarView      ← หน้า Working Calendar & Shift Schedule แบบเต็มหน้า (reuse class เดียวกัน)
   Modals (.modal-backdrop, เปิด/ปิดด้วย class .open):
-    #timescaleModal   — ตั้งค่าระดับเวลาที่แสดงบนหัวตาราง
-    #taskModal        — แก้ไข Task (แท็บ General/Description/Resources/Attachment)
-    #calendarModal    — ปฏิทินเวลาทำงาน (Working Time Calendar)
-    #mhModal          — จัดการ Marks & Highlights
-    #historyModal     — ประวัติ Baseline
+    #timescaleModal      — ตั้งค่าระดับเวลาที่แสดงบนหัวตาราง
+    #taskModal           — แก้ไข Task
+    #calendarModal       — ตั้งเวลาทำงาน/วันหยุดรายสัปดาห์ (ควบคุมโดยหน้า Calendar ผ่านปุ่ม "Edit Working
+                            Hours & Weekdays" แทนที่จะเปิดจาก nav-rail โดยตรงแล้ว)
+    #projectSafetyModal  — แก้ไข Buffer Days / Lost Time Incidents / Man-Hours Logged / Shift Crews
+    #configModal         — System & Project Configuration (4 แท็บ ดูหัวข้อ 3)
+    #mhModal             — จัดการ Marks & Highlights
+    #historyModal        — Baseline History แบบ modal ย่อ (quick-access เดิม, ยังอยู่คู่กับหน้า Baseline เต็ม)
   <input type="file" id="fileImportInput" hidden>   ← ใช้ import JSON
 ```
+
+### ธีม
+UI ปัจจุบันเป็นธีมมืด "dark industrial" ทั้งหมด ไม่ใช่ system font stack แบบเรียบง่ายอีกต่อไป — ใช้ CSS
+custom properties ขึ้นต้นด้วย `--dt-*` (เช่น `--dt-surface-base`, `--dt-surface-panel`,
+`--dt-critical-path`, `--dt-scurve-actual`/`--dt-scurve-planned`, `--dt-baseline-purple`,
+`--dt-warning-amber`, `--dt-border-subtle`, `--dt-text-primary`/`--dt-text-secondary`/`--dt-text-muted`)
+และฟอนต์ที่โหลดจาก Google Fonts CDN: `--font-sans` (Be Vietnam Pro), `--font-mono` (JetBrains Mono),
+`--font-headline` (Space Grotesk)
 
 โครงสร้าง `.main-split` เป็น **CSS Grid 2 แถว** (แถวบน = nav-rail/sidebar/timeline, แถวล่าง = S-Curve) เพื่อให้
 ทุกคอลัมน์แถวบนหด/ขยายความสูงเท่ากันเสมอเมื่อ S-Curve เปิด/ปิด — เป็นจุดสำคัญที่ทำให้ vertical scroll-sync ระหว่าง
@@ -63,26 +77,96 @@ task list กับ Gantt bar ตรงกันเป๊ะ (ดูหัวข
 - **ช่วงวันที่แสดงผล**: กำหนดเองผ่าน input วันที่ หรือ Auto-fit (`autoTimeBounds`) คำนวณจากวันที่ทุก task
 - **Critical Path (CPM)**: ปุ่ม `#btnToggleCP` — คำนวณ Forward/Backward pass รองรับ lag ทั้ง 4 แบบ, หา Total
   Float, ไฮไลต์ task ที่ TF≤0 เป็น critical (สีแดง) พร้อมแบนเนอร์สรุประยะเวลา/จำนวน critical task
-- **S-Curve**: ปุ่ม `#btnToggleSCurve` — กราฟความคืบหน้าสะสมแบบถ่วงน้ำหนักตามระยะเวลา (planned vs actual) แสดง
-  ใต้ Gantt และแสดงซ้ำแบบย่อใน Dashboard
-- **Dashboard**: % ความคืบหน้ารวม, จำนวน task ทั้งหมด, สรุป Critical Path, จำนวน task เกินกำหนด, กราฟสถานะแบบ
-  stacked bar, กราฟ S-Curve แบบย่อ, รายการ task ที่เกินกำหนด (ช้ากี่วัน), รายการ milestone ที่ใกล้ถึง
-- **Nav Rail**: สลับ 2 มุมมอง — "Gantt" (📊, ค่าเริ่มต้น) และ "Dashboard" (📈)
+- **S-Curve**: ปุ่ม `#btnToggleSCurve` — กราฟความคืบหน้าสะสมแบบถ่วงน้ำหนัก (planned vs actual) เลือกวิธีถ่วง
+  น้ำหนักได้ผ่าน Config (`systemConfig.progressWeightMethod`: Duration/Man-Hour/Cost-Weighted ใช้
+  `getTaskWeight(t)` กลาง) พร้อม Confidence Envelope ±X% รอบเส้น Planned (`systemConfig.scurveConfidencePct`)
+  แสดงใต้ Gantt และแสดงซ้ำแบบเต็มใน Dashboard
+
+### Progress (Dashboard) — `renderDashboard()`, nav-rail "📈 Progress"
+- **Overall Progress (S-Curve)**: % รวมถ่วงน้ำหนักตาม `getTaskWeight`, กราฟ SVG S-Curve เต็ม (planned vs
+  actual, Confidence Envelope, จุด milestone, เส้น "วันนี้")
+- **EVM (Earned Value Management)**: `computeEVM()` คำนวณ PV (Planned Value), EV (Earned Value), AC (Actual
+  Cost, จาก `task.actualCost`), SPI (Schedule Performance Index), CPI (Cost Performance Index) — แสดง
+  Schedule Variance (SV) เป็นทั้งเงินและ % พร้อมเทียบกับ Official Baseline (`systemConfig.officialBaselineId`)
+- **Critical Path Status**: จำนวน critical task, Longest path (วัน), **Buffer Depletion**
+  (`computeBufferDepletion(cp)` — เทียบ CPM forecast finish กับวันที่วางแผนจริง หารด้วย buffer ที่ตั้งไว้
+  `projectSafety.bufferDays`, ไม่ใช่ CCPM เต็มรูปแบบ)
+- **WBS Execution Status**: กราฟ stacked bar สถานะ task ทั้งหมด (เสร็จ/ดำเนินการ/รอ)
+- **Safety & Effort**: Man-Hours Logged, Lost Time Incidents, Shift Crews (จาก `projectSafety`, แก้ไขผ่าน
+  `#projectSafetyModal`)
+- **Critical Path Tasks At Risk** และ **Upcoming Milestones & Gate Reviews**: รายการ task/milestone ที่ต้อง
+  จับตา
+- **Task Distribution & Workload by Team**: การ์ดสรุปงานตาม `task.team` พร้อม % สถานะและจำนวนงานบน critical path
+
+### System & Project Configuration — `openConfigModal()`, nav-rail "⚙️ Config" (modal, ไม่ใช่ full page)
+4 แท็บ ทุก control ผูกกับ logic การคำนวณจริง ไม่ใช่แค่เก็บค่าเฉยๆ:
+- **ข้อมูลโครงการ & WBS** (`info`): Plant Facility, Outage Code, Target Cold Run Date, Grid Sync COD +
+  Planned Duration คำนวณอัตโนมัติจากข้อมูล task จริง
+- **CPM Engine & S-Curve Rules** (`cpm`): Progress Weight Method, Critical Float Threshold (≤0/≤1, แทนที่
+  hardcoded ใน `computeCriticalPath()`), Dependency Lag Calculation (workdays/calendar), Early/Late Date
+  Strategy ("Late Dates Constrained by Target COD"), Instant CPM Recalculate (cache ผลลัพธ์จนกว่าจะกด
+  Recalculate), S-Curve Confidence Envelope, และตั้ง **Official Baseline** (`officialBaselineId`) สำหรับใช้
+  เทียบใน EVM/Dashboard/Baseline page — dropdown จะไม่แสดง baseline ที่ตั้ง state เป็น `archived` แล้ว
+  (ยกเว้นตัวที่กำลังเป็น official อยู่แล้วก่อนถูก archive)
+- **Cloud Sync & Firebase** (`sync`): Firebase Project ID/Firestore path แสดงแบบ read-only (เหตุผลด้าน
+  ความปลอดภัย), LocalStorage info + Clear Cache, Automated Rolling Snapshot (`autoSnapshotEnabled`/
+  `autoSnapshotIntervalMin` — เรียก `captureBaselineSnapshot()` ผ่าน `setInterval`), Full JSON Database
+  Backup, Integrity Checksum (SHA-256 ผ่าน `crypto.subtle.digest`)
+- **สิทธิ์และการเข้าถึง** (`security`): แสดงบัญชีที่ล็อกอินจริง + Sign Out (โมเดล 1 บัญชีต่อ 1 แผนงาน ไม่มีระบบ
+  role/permission)
+
+### Baseline History & Comparison — `renderBaselinePage()`, nav-rail "📸 Baseline" (หน้าเต็ม)
+- **KPI tiles**: Baseline Slippage Impact (Days TF Deficit เทียบ CPM forecast กับ Official Baseline),
+  Active Milestones Tracked (Early/On-Time/Delayed), Active Comparison Target
+- **Critical Variance banner**: แจ้งเตือนเมื่อมี critical task slip เกินแผนเดิมของ Official Baseline
+- **Baseline Version Vault**: ตารางประวัติ snapshot ทุกเวอร์ชัน แสดง Author + **State**
+  (`active`/`standby`/`archived`, badge สีคลิกวนสถานะได้ — เป็น metadata การจัดเก็บของผู้ใช้เอง ไม่ผูกกับการ
+  คำนวณใดๆ ยกเว้นผลต่อ dropdown Official Baseline ใน Config), ปุ่ม Compare (สลับไป Gantt แสดง overlay
+  purple/blue), Restore, Delete
+- **Gantt Overlay Analysis**: แสดงเฉพาะ task ที่มีวันที่ต่างจาก Official Baseline จริง (diff-only) — แถบ
+  Current (ทึบ) กับ Baseline (กรอบ dashed) overlay ทับกันในแนวเดียวกัน มี slip label, milestone แสดงเป็นเพชร,
+  แยกสีตาม critical path
+- **Cloud Sync & Audit Trail**: Operator Identity, Cluster Target, Last Remote Sync, SHA-256 Checksum
+  Verification, Force Firestore Sync Now, Recent Snapshot Commits
+
+### Working Calendar & Shift Schedule — `renderCalendarPage()`, nav-rail "📅 Calendar" (หน้าเต็ม)
+- **KPI tiles**: Working Model (จากจำนวนวันทำงาน/สัปดาห์), Turnaround Mode (จาก headcount ของ `shiftTeams`),
+  Planned Exceptions (จำนวน `outageExceptions`), Schedule Engine (จาก `systemConfig.dependencyLagMode`)
+- **Calendar grid รายเดือน** (`buildMonthGrid()`): 42 cell (6 สัปดาห์), ระบายสี off-day จาก `isWorkday()`
+  (read-only), badge วันหยุด/blackout จาก `outageExceptions` — **แยกจาก workday status โดยสิ้นเชิง ไม่กระทบ
+  CPM engine เลย** มีปุ่ม Prev/Next เปลี่ยนเดือน (ไม่ persist, in-memory เท่านั้น)
+- **Shift Day/Night Team**: การ์ดแสดง/แก้ไข leadName, leadRole, headcount ต่อ shift (`shiftTeams`)
+- **CPM Rules panel**: สรุป read-only ของ `dependencyLagMode`/`cpmFloatThreshold`/workday pattern/
+  `dateStrategy` ที่มีอยู่จริงในระบบเท่านั้น (ไม่มี field ปลอมที่ไม่ได้ผูก logic จริง) มีปุ่มลิงก์เปิด Config
+  โดยตรงแทนการทำ control ซ้ำซ้อน
+- **Outage Workload Hours per Week**: แถบ 4 หมวด (Critical Path/Regular Overtime/NDT & Inspections/
+  Standby-Cost-down) รวม `manHours` ตาม `task.workCategory` ที่ผู้ใช้เลือกเอง (ไม่ auto-derive จาก CPM)
+- **Outage Exceptions**: เพิ่ม/ลบวันหยุด/blackout date ผ่าน `prompt()` — **display-only บนปฏิทินเท่านั้น**
+- ปุ่ม "⚙️ Edit Working Hours & Weekdays" เปิด `#calendarModal` เดิม (ตั้งเวลาทำงาน/วันทำงานรายสัปดาห์จริง)
+
+- **Nav Rail**: สลับ 4 view (Timeline/Progress/Baseline/Calendar) + ปุ่ม Config (เปิด modal แยก) — ดูรายละเอียด
+  แต่ละหน้าด้านบน
 - **Print / Export A4**: ปุ่ม Export PNG/PDF เรียก `window.print()` พร้อม CSS `@page { size: A4 landscape; }`
   ที่ซ่อน chrome ของแอป (header, drawer, modal, nav rail) ระหว่างพิมพ์
 - **Import/Export**:
-  - Export JSON (`gantt-plan-v6.json`) — ครบทุกอย่าง (tasks, baselineHistory, workingCalendar, timescaleTiers,
-    projectName)
-  - Export CSV/Excel (`gantt-plan-v6.csv`) — id/name/type/status/start/end/progress/owner
-  - Import JSON — แทนที่ tasks/baselineHistory/workingCalendar/timescaleTiers ทั้งหมด
+  - Export JSON (`gantt-plan-v6.json`) — ใช้ `buildStoragePayload()` ตรงๆ จึงครบทุก field ปัจจุบันทั้งหมด
+    (tasks, baselineHistory, workingCalendar, timescaleTiers, projectName, systemConfig, projectSafety,
+    outageExceptions, shiftTeams)
+  - Export CSV/Excel (`gantt-plan-v6.csv`) — เฉพาะ task fields: id/name/type/status/start/end/progress/
+    owner/team/priority/criticalOverride/calendarLabel/attachment/budgetCost/actualCost/manHours
+    (ยังไม่รวม `workCategory`)
+  - Import JSON — แทนที่ tasks/baselineHistory/workingCalendar/timescaleTiers/systemConfig/projectSafety/
+    outageExceptions/shiftTeams ทั้งหมด (มี fallback ให้ค่า default ถ้าไฟล์เก่าไม่มี field ใหม่)
 - **ไม่มี Undo/Redo** — มีเฉพาะกลไก cancel-restore ใน modal แก้ไข task (บันทึก backup ก่อนแก้ ยกเลิกแล้วคืนค่าเดิม)
 - **Modal เพิ่มเติม**:
   - Timescale Settings — เปิด/ปิดแต่ละระดับเวลาบนหัวตาราง
   - Working Time Calendar — เวลาเริ่ม/เลิกงาน, พักเที่ยง, วันทำงานรายสัปดาห์ (ใช้คำนวณวันที่แบบ workday-aware
     และใน CPM)
   - Marks & Highlights — จัดการรายการ mark/highlight แยกจาก modal แก้ไข task ปกติ
-  - Baseline History — บันทึก snapshot วันที่ปัจจุบันเป็น baseline, เปรียบเทียบ (overlay แท่งสีม่วง), restore,
-    ลบ snapshot
+  - Baseline History (quick modal, `#historyModal`) — บันทึก snapshot วันที่ปัจจุบันเป็น baseline,
+    เปรียบเทียบ (overlay แท่งสีม่วง), restore, ลบ snapshot — กลไกเดียวกับที่ใช้ในหน้า Baseline เต็ม
+  - Project Safety & Buffer (`#projectSafetyModal`) — แก้ไข Buffer Days, Lost Time Incidents, Man-Hours
+    Logged, Shift Crews (แสดงผลใน Dashboard)
   - "สร้างแผนใหม่..." / "รีเซ็ตเป็นแผนตัวอย่าง" — ล้างกลับไปเป็นข้อมูลตัวอย่างเริ่มต้น (มี confirm)
   - Cloud Sync — ปุ่มดึงข้อมูลล่าสุดจาก Firestore มา re-render, label เปลี่ยนตามสถานะ (ยังไม่ล็อกอิน/กำลัง
     เชื่อมต่อ/ซิงค์แล้ว/error) โดยเช็คทุก 1 วินาที
@@ -109,6 +193,24 @@ task list กับ Gantt bar ตรงกันเป๊ะ (ดูหัวข
 | `desc` | string | บันทึกรายละเอียด |
 | `owner` | string | ผู้รับผิดชอบ/ทีม |
 | `attachment` | string (URL) | ลิงก์แนบ (อ่านค่าในแท็บ Attachment ของ modal — **หมายเหตุ**: ควรตรวจสอบเพิ่มว่าค่านี้ถูกบันทึกกลับเข้า task ครบทุกกรณีหรือไม่ ถ้าพบปัญหาการใช้งานจริง) |
+| `team` | string | ชื่อทีม/หน่วยงาน (ใช้จัดกลุ่มการ์ดใน Dashboard "Task Distribution & Workload by Team") |
+| `priority` | string | หมวดความสำคัญ (`"Critical Component"｜"Major Component"｜"Minor Component"｜"Standard Task"｜""`) |
+| `criticalOverride` | boolean | บังคับให้ task เป็น critical path เสมอ ไม่ว่าผล CPM จะคำนวณได้ Total Float เท่าไร |
+| `calendarLabel` | string | ป้ายกำกับปฏิทินทำงานของ task นี้ (ปัจจุบันเป็น metadata แสดงผลเท่านั้น ยังไม่ถูกอ่านโดย `isWorkday()`/CPM จริง) |
+| `budgetCost`, `actualCost` | number | งบประมาณ/ต้นทุนจริง ใช้ใน EVM (`computeEVM()`: AC มาจาก `actualCost`) และ cost-weighted S-Curve |
+| `manHours` | number | ชั่วโมงคน ใช้เป็นน้ำหนักถ่วงแบบ Man-Hour-Weighted (`getTaskWeight`) และรวมเข้าแถบ Outage Workload ตาม `workCategory` |
+| `workCategory` | `""｜"critical"｜"overtime"｜"ndt"｜"standby"` | หมวดงานสำหรับตาราง Outage Workload Hours per Week ในหน้า Calendar — ผู้ใช้เลือกเอง ไม่ auto-derive จากผล CPM |
+
+### Baseline snapshot entry (แต่ละรายการใน array `baselineHistory`)
+
+| Field | ชนิด | ความหมาย |
+|---|---|---|
+| `id` | number | รหัส snapshot |
+| `label` | string | ชื่อ snapshot |
+| `savedAt` | string (ISO datetime) | เวลาที่บันทึก |
+| `author` | string | ผู้บันทึก (จาก `window.__fbUser.name`, fallback `'Unknown'`) |
+| `state` | `"active"｜"standby"｜"archived"` | สถานะการจัดเก็บที่ผู้ใช้ตั้งเอง (default `"standby"`) — เป็น metadata คนละแนวคิดกับ `systemConfig.officialBaselineId` ที่ใช้จริงในการคำนวณ; ผลจริงอย่างเดียวคือ baseline ที่ `archived` จะไม่แสดงเป็นตัวเลือกใหม่ใน dropdown Official Baseline ที่ Config |
+| `snapshot` | `{ [taskId]: { targetStart, targetEnd, name } }` | วันที่แผนของทุก task ณ ตอนบันทึก |
 
 ### Storage payload ระดับบนสุด (`buildStoragePayload()`)
 
@@ -116,20 +218,26 @@ task list กับ Gantt bar ตรงกันเป๊ะ (ดูหัวข
 {
   projectName,        // string
   tasks,               // array ของ task object ด้านบน
-  baselineHistory,     // [{ id, label, savedAt (ISO string), snapshot: { [taskId]: { targetStart, targetEnd, name } } }]
+  baselineHistory,     // array ของ baseline snapshot entry ด้านบน
   currentZoom,         // "day"|"week"|"month"|"quarter"
   showCriticalPath,    // boolean
   showSCurve,          // boolean
   viewMode,            // "auto"|"manual"
   viewStart, viewEnd,  // string YYYY-MM-DD (ใช้เมื่อ viewMode==="manual")
   workingCalendar,     // { startTime, endTime, breakStart, breakEnd, workdays: number[] (0=อาทิตย์..6=เสาร์) }
-  timescaleTiers       // { years, quarters, months, weeks, days } (boolean ทั้งหมด)
+  timescaleTiers,      // { years, quarters, months, weeks, days } (boolean ทั้งหมด)
+  projectSafety,       // { bufferDays, lostTimeIncidents, manHoursLogged, shiftCrews }
+  systemConfig,        // { plantFacility, outageCode, targetColdRunDate, gridSyncCOD, progressWeightMethod,
+                        //   officialBaselineId, currencyUnit, scurveConfidencePct, cpmFloatThreshold,
+                        //   dateStrategy, dependencyLagMode, instantRecalc, autoSnapshotEnabled,
+                        //   autoSnapshotIntervalMin }
+  outageExceptions,    // [{ date: "YYYY-MM-DD", label: string }] — display-only, key ด้วย date (เพิ่มซ้ำ = upsert label)
+  shiftTeams           // { day: { leadName, leadRole, headcount }, night: { leadName, leadRole, headcount } }
 }
 ```
 
-**หมายเหตุ**: ไฟล์ export เป็น JSON (`menuExportJSON`) เก็บเฉพาะ subset — `projectName, tasks, baselineHistory,
-workingCalendar, timescaleTiers` เท่านั้น (ไม่รวม zoom/view/CP/SCurve state) ต่างจาก payload เต็มที่เก็บใน
-localStorage/Firestore
+**หมายเหตุ**: `menuExportJSON` เรียก `buildStoragePayload()` ตรงๆ จึง export ได้ payload เต็มรูปแบบทุก field
+ด้านบน (ไม่ใช่ subset แบบเดิม) — เหมือนกับที่เก็บใน localStorage/Firestore ทุกประการ
 
 ## 5. Storage & Sync
 
@@ -139,8 +247,12 @@ localStorage/Firestore
   `window.__fbSync(payload)` เพื่อ push ขึ้น Firestore แบบ fire-and-forget — เรียกทุกครั้งที่ `render()` ทำงาน
 - **`loadFromStorage()`**: อ่าน v6 (หรือ v5 สำรอง) จาก localStorage แล้วส่งต่อให้ `applyLoadedPayload()`
 - **`applyLoadedPayload(payload)`**: รวม field เข้า state ของแอป — เติม `type` ให้ task เก่าที่มีแค่
-  `milestone: boolean`, บังคับ `end = start` ให้ milestone/mark, normalize `deps`, คำนวณ `nextId`/`nextHistId`
-  ใหม่จาก id สูงสุด
+  `milestone: boolean`, บังคับ `end = start` ให้ milestone/mark, normalize `deps`, เติมค่า default ให้ทุก
+  field ที่เพิ่มทีหลัง (`team, priority, criticalOverride, calendarLabel, budgetCost, actualCost, manHours,
+  workCategory`) กรณีโหลดข้อมูลเก่าที่ยังไม่มี field เหล่านี้, merge `systemConfig`/`projectSafety` แบบ
+  shallow (`{...current, ...loaded}`) เพื่อไม่ให้ field ใหม่หายไปเมื่อโหลด payload เก่า, `outageExceptions`
+  overwrite ตรงๆ (fallback `[]` ถ้าไม่มี), `shiftTeams` merge แบบ nested shallow ต่อ sub-object (`day`/
+  `night`) แยกกัน, คำนวณ `nextId`/`nextHistId` ใหม่จาก id สูงสุด
 - **Firestore**: โครงสร้างเอกสารคือ `plans/{uid}` (collection `plans`, document id = Firebase Auth `uid`)
   - `window.__fbSync(payload)` → `setDoc(doc(db,'plans',uid), payload)`
   - `window.__fbLoad()` → `getDoc(doc(db,'plans',uid))` คืนค่า `snap.data()` หรือ `null`
@@ -200,9 +312,16 @@ localStorage/Firestore
 - `hasChildren`, `isCollapsedAncestor`, `taskDepth` — ช่วยจัดการโครงสร้างลำดับชั้น
 - `applyRollups()` — คำนวณ `progress` ของ parent แบบ `auto` ใหม่จากค่าเฉลี่ยของลูก
 
-**Critical Path**
-- `computeCriticalPath()` — เอนจิน CPM เต็มรูปแบบ (forward/backward pass, lag 4 แบบ, total float, จุด/เส้นทาง
-  critical, ระยะเวลารวมของ critical path)
+**Critical Path & EVM**
+- `computeCriticalPath()` — เอนจิน CPM เต็มรูปแบบ (forward/backward pass, lag 4 แบบตาม
+  `systemConfig.dependencyLagMode`, float threshold ตาม `systemConfig.cpmFloatThreshold`, total float,
+  จุด/เส้นทาง critical, ระยะเวลารวมของ critical path) — cache ผลลัพธ์ไว้ (`cachedCP`) ถ้า
+  `systemConfig.instantRecalc` เปิดอยู่ ต้องกด Recalculate ถึงคำนวณใหม่
+- `getTaskWeight(t)` — คืนน้ำหนักถ่วงของ task ตาม `systemConfig.progressWeightMethod`
+  (duration/manhour/cost) ใช้ร่วมกันทั้งใน `renderSCurve()` และ Dashboard
+- `computeEVM()` — คำนวณ PV/EV/AC/SPI/CPI จาก `budgetCost`/`actualCost`/`getTaskWeight`
+- `computeBufferDepletion(cp)` — เทียบ CPM forecast finish กับแผนจริง หารด้วย `projectSafety.bufferDays`
+  (metric แบบง่าย ไม่ใช่ CCPM เต็มรูปแบบ)
 
 **Rendering**
 - `render()` — ฟังก์ชันหลักที่ orchestrate การ re-render ทั้งหมด: `applyRollups()` →
@@ -214,16 +333,26 @@ localStorage/Firestore
 - `pctAt(d, s, e)` — คำนวณ % ความคืบหน้าเชิงเส้นของวันที่ `d` ระหว่างช่วง `s`–`e`
 - `renderSCurve(min, max, dayWidth, totalWidth)` — สร้างกราฟ S-Curve (planned vs actual) แบบถ่วงน้ำหนักตาม
   ระยะเวลา
-- `switchView(view)` — สลับการแสดงผลระหว่าง Gantt กับ Dashboard
-- `renderDashboard()` — คำนวณและเรนเดอร์ทุกอย่างในหน้า Dashboard (ใช้ helper เดียวกับ Gantt/S-Curve ซ้ำ ไม่
-  duplicate logic)
+- `switchView(view)` — สลับการแสดงผลระหว่าง 4 view: `"gantt"｜"dashboard"｜"baseline"｜"calendar"`
+  (แสดง/ซ่อน container ที่เกี่ยวข้อง แล้วเรียก `renderDashboard()`/`renderBaselinePage()`/
+  `renderCalendarPage()` ตามลำดับ — Config ไม่ใช่ view แต่เปิด `openConfigModal()` แยก)
+- `renderDashboard()` — คำนวณและเรนเดอร์ทุกอย่างในหน้า Progress/Dashboard รวม EVM (ใช้ helper เดียวกับ
+  Gantt/S-Curve ซ้ำ ไม่ duplicate logic)
+- `renderBaselinePage()` — เรนเดอร์หน้า Baseline History & Comparison เต็มหน้า (KPI tiles, Version Vault,
+  Gantt Overlay Analysis แบบ diff-only, Cloud Sync Audit Trail)
+- `renderCalendarPage()`, `buildMonthGrid(year, month)` — เรนเดอร์หน้า Working Calendar & Shift Schedule
+  (`buildMonthGrid` สร้าง 42 cell/6 สัปดาห์ ให้ `renderCalendarPage()` วาดกริดปฏิทิน)
 
 **Modals**
 - `openTimescaleModal`, `openModal`/`closeModal`/`switchTab`, `liveSyncModalChanges` — ควบคุม modal แก้ไข task
   (พรีวิวสดระหว่างแก้ + backup/restore เมื่อกด cancel)
-- `openCalendarModal()` — modal ปฏิทินเวลาทำงาน
+- `openCalendarModal()` — modal ตั้งเวลาทำงาน/วันหยุดรายสัปดาห์ (เข้าถึงผ่านปุ่ม "Edit Working Hours &
+  Weekdays" ในหน้า Calendar หรือเมนู drawer เดิม)
+- `openProjectSafetyModal()` — modal แก้ไข Buffer Days/Lost Time Incidents/Man-Hours Logged/Shift Crews
+- `openConfigModal()`, `switchConfigTab(tabName)` — modal System & Project Configuration 4 แท็บ
 - `renderMHModal()` — modal จัดการ Marks & Highlights
-- `captureBaselineSnapshot(label)`, `renderHistoryModal()` — จัดการ Baseline History
+- `captureBaselineSnapshot(label)`, `renderHistoryModal()` — จัดการ Baseline History (ใช้ร่วมกันทั้ง quick
+  modal เดิมและหน้า Baseline เต็มหน้าใหม่)
 
 **อื่นๆ**
 - `updateToggleBtnStyles()` — sync สถานะ active ของปุ่ม Critical Path / S-Curve
@@ -239,8 +368,9 @@ localStorage/Firestore
   `firebase-firestore.js` จาก `https://www.gstatic.com/firebasejs/10.13.2/...`)
 - ไม่มี chart library ภายนอก — Gantt bar และ S-Curve เขียนด้วย raw SVG/DOM เอง (ไม่ใช้ D3, Chart.js ฯลฯ)
 - ไม่มี icon library — ใช้ emoji ธรรมดา (📊 📈 🎯 ☁️ ฯลฯ)
-- ไม่มี web font จาก CDN — ใช้ system font stack (`-apple-system, "Segoe UI", "Noto Sans Thai", Roboto, Arial,
-  sans-serif`)
+- **Google Fonts CDN** (`fonts.googleapis.com`/`fonts.gstatic.com`): Be Vietnam Pro (`--font-sans`),
+  JetBrains Mono (`--font-mono`), Space Grotesk (`--font-headline`) — ธีมมืด "dark industrial" ใช้ฟอนต์
+  เหล่านี้แทน system font stack เดิม
 - ไม่มี framework/library JS อื่นใด (vanilla JS ล้วน)
 
 ## 10. Known Limitations / หมายเหตุ
@@ -252,3 +382,12 @@ localStorage/Firestore
   กลับเข้า task ครบทุก edge case หรือไม่ — ควรตรวจเพิ่มถ้าพบปัญหาจากการใช้งานจริง
 - ข้อมูลตัวอย่าง/ทดสอบทั้งหมดใน repo เป็น dummy data เท่านั้น (ห้ามใส่ข้อมูลโรงงานจริงตาม Data Safety rule ใน
   `.claude/CLAUDE.md`)
+- panel "CPM Rules" ในหน้า Calendar เป็น **read-only** เท่านั้น (สรุปค่าจริงจาก `systemConfig`/
+  `workingCalendar` มาแสดง ไม่ใช่ control แก้ไข) — ต้องแก้ค่าจริงที่ Config > CPM Engine เท่านั้น เพื่อไม่ให้
+  มี control ซ้ำซ้อนที่อาจ drift ไม่ตรงกัน
+- `outageExceptions` (วันหยุด/blackout date ในหน้า Calendar) เป็น **display-only โดยเจตนา** — ไม่ถูกอ่านโดย
+  `isWorkday()`/`getNextWorkday()`/`calculateEndDateByWorkdays()`/`calculateStartDateFromEnd()`/
+  `countWorkdaysBetween()`/`computeCriticalPath()` เลย ถ้าต้องการวันหยุดที่มีผลต่อการคำนวณ CPM จริงต้องตั้งที่
+  `workingCalendar.workdays` (รายสัปดาห์) ผ่าน `#calendarModal` เท่านั้น
+- `task.calendarLabel` และ `task.workCategory` เป็น metadata ที่ผู้ใช้กรอกเอง ไม่ได้ผูกกับการคำนวณวันที่/CPM
+  ใดๆ (เป็นการตั้งใจออกแบบไว้ ไม่ใช่บั๊ก)

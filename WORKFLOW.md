@@ -94,25 +94,77 @@ dependency ฯลฯ) ทุกอย่างจะไหลผ่านวง�
    ทุกคอลัมน์ (nav-rail/sidebar/timeline) เพื่อไม่ให้ scroll sync ระหว่าง task list กับ Gantt เพี้ยน
 3. `renderSCurve()` วาดกราฟ planned vs actual แบบถ่วงน้ำหนักตามระยะเวลา (duration-weighted)
 
-### ดู Dashboard
-1. กด ไอคอน 📈 บน nav rail → `switchView('dashboard')`
+### ดู Progress (Dashboard)
+1. กด ไอคอน 📈 "Progress" บน nav rail → `switchView('dashboard')`
 2. ซ่อน panel ที่เกี่ยวกับ Gantt (`taskSidebar`, `timelineWrapper`, `scurveRowSpacer`, `scurveClip`) โชว์
    `#dashboardView` แทน
-3. `renderDashboard()` คำนวณสรุปใหม่ทั้งหมด: % ความคืบหน้ารวม, สรุป Critical Path, task เกินกำหนด, milestone
-   ที่ใกล้ถึง, กราฟสถานะ, mini S-Curve — ใช้ helper ชุดเดียวกับ Gantt (`pctAt`, `computeCriticalPath`,
+3. `renderDashboard()` คำนวณสรุปใหม่ทั้งหมด: % ความคืบหน้ารวมถ่วงน้ำหนักตาม `getTaskWeight` (ตาม
+   `systemConfig.progressWeightMethod`), **EVM** ผ่าน `computeEVM()` (PV/EV/AC/SPI/CPI เทียบกับ Official
+   Baseline ถ้าตั้งไว้), Critical Path summary + **Buffer Depletion** (`computeBufferDepletion(cp)`),
+   task เกินกำหนด, milestone ที่ใกล้ถึง, กราฟสถานะ, S-Curve เต็ม, Safety & Effort (`projectSafety`), และการ์ด
+   สรุป workload ตาม `task.team` — ใช้ helper ชุดเดียวกับ Gantt (`pctAt`, `computeCriticalPath`,
    `autoTimeBounds`) ไม่มีการคำนวณซ้ำแยกชุด
 
-### Baseline History (บันทึก/เปรียบเทียบแผน)
-1. เปิด modal Baseline History → กด "Save Baseline Version" → `captureBaselineSnapshot(label)` เก็บวันที่
-   ปัจจุบันของทุก task เป็น `targetStart/targetEnd` snapshot ใหม่
-2. กด "Compare" ที่ snapshot ใดๆ → overlay แท่งสีม่วงแสดงแผนเดิมทับ Gantt ปัจจุบัน
-3. กด "Restore" → เขียนวันที่จาก snapshot กลับเข้า `tasks` จริง → เข้าสู่ Core Edit Loop
-4. กด "Delete" → ลบ snapshot ออกจาก `baselineHistory`
+### System & Project Configuration
+1. กดปุ่ม ⚙️ "Config" บน nav rail → `openConfigModal()` (เปิด modal ไม่ใช่สลับ view) → populate ค่าปัจจุบัน
+   จาก `systemConfig`/`workingCalendar`/`projectSafety` เข้าฟอร์มทั้ง 4 แท็บ
+2. คลิกแท็บ (`switchConfigTab(tabName)`) เพื่อสลับระหว่าง ข้อมูลโครงการ & WBS / CPM Engine & S-Curve Rules /
+   Cloud Sync & Firebase / สิทธิ์และการเข้าถึง — ไม่กระทบ state ของ modal อื่น
+3. แก้ค่าแล้วกด Save → เขียนค่าใหม่กลับเข้า `systemConfig` (เช่น `progressWeightMethod`,
+   `cpmFloatThreshold`, `dependencyLagMode`, `officialBaselineId`) → ปิด modal → เข้าสู่ Core Edit Loop
+   (`render()`) เพื่อให้ `computeCriticalPath()`/`computeEVM()`/`renderSCurve()` ใช้ค่าที่ตั้งใหม่ในรอบถัดไป
+   ทันที (ถ้า `instantRecalc` เปิดอยู่ ผล CPM จะยัง cache ไว้จนกว่าจะกด "Recalculate CPM" อีกครั้ง)
+4. ปุ่ม Automated Rolling Snapshot / Checksum Verification / Force Sync ในแท็บ Cloud Sync ทำงานเช่นเดียวกับ
+   กลไกในหน้า Baseline (ดูหัวข้อถัดไป) — เรียก `captureBaselineSnapshot()`/`crypto.subtle.digest`/
+   `saveToStorage()` ตรงๆ
+
+### Baseline History & Comparison (หน้าเต็ม)
+1. กด ไอคอน 📸 "Baseline" บน nav rail → `switchView('baseline')` → `renderBaselinePage()` คำนวณ KPI tiles
+   (Slippage Impact เทียบ Official Baseline, Milestone Tracked, Active Comparison Target) และ Critical
+   Variance banner ถ้ามี critical task slip เกินแผนเดิม
+2. กด "Save Baseline Version" (หรือปุ่มเดิมใน quick modal `#historyModal`) → `captureBaselineSnapshot(label)`
+   เก็บวันที่ปัจจุบันของทุก task เป็น `targetStart/targetEnd` snapshot ใหม่ พร้อม `author` (จาก
+   `window.__fbUser.name`) และ `state: 'standby'` เริ่มต้น
+3. ในตาราง Baseline Version Vault กด badge สถานะเพื่อวนค่า `active → standby → archived → active` —
+   ถ้าตั้งเป็น `archived` แล้ว snapshot นั้นจะไม่แสดงเป็นตัวเลือกใหม่ใน dropdown Official Baseline ที่ Config
+   อีกต่อไป (ยกเว้นตัวที่กำลังเป็น official อยู่ก่อนถูก archive)
+4. กด "Compare" ที่ snapshot ใดๆ → ตั้ง `compareVersionId` → `switchView('gantt')` → overlay แท่งสีม่วงแสดง
+   แผนเดิมทับ Gantt ปัจจุบัน
+5. กด "Restore" → เขียนวันที่จาก snapshot กลับเข้า `tasks` จริง → เข้าสู่ Core Edit Loop
+6. กด "Delete" → ลบ snapshot ออกจาก `baselineHistory` (เคลียร์ `compareVersionId`/`officialBaselineId` ถ้า
+   ชี้ไปที่ snapshot ที่ถูกลบ)
+7. ส่วน Gantt Overlay Analysis แสดงเฉพาะ task ที่มีวันที่ปัจจุบันต่างจาก Official Baseline จริง (diff-only —
+   task ที่ตรงตามแผนเดิมทุกอย่างจะไม่โผล่มาให้รกตาราง)
+8. ส่วน Cloud Sync & Audit Trail: ปุ่ม Checksum Verification เรียก `crypto.subtle.digest('SHA-256', ...)`
+   บน `buildStoragePayload()`, ปุ่ม Force Firestore Sync Now เรียก `saveToStorage()` ตรงๆ เพื่อ trigger
+   `window.__fbSync()` ทันที
+
+### Working Calendar & Shift Schedule
+1. กด ไอคอน 📅 "Calendar" บน nav rail → `switchView('calendar')` → `renderCalendarPage()` คำนวณ KPI tiles
+   (Working Model, Turnaround Mode, Planned Exceptions, Schedule Engine) และวาดปฏิทินเดือนปัจจุบันด้วย
+   `buildMonthGrid(year, month)`
+2. แต่ละวันในกริดเรียก `isWorkday(cellDate)` (read-only) เพื่อระบายสี off-day ตาม `workingCalendar.workdays`
+   และเช็ค `outageExceptions` เพื่อแสดง badge วันหยุด/blackout แยกกันโดยสิ้นเชิง — **การเพิ่ม/ลบ
+   Outage Exception ไม่มีผลต่อ `isWorkday()`/CPM ใดๆ ทั้งสิ้น** เป็น display-only ตามที่ออกแบบไว้
+3. กด "+ Add Blackout Date" → prompt() 2 ครั้ง (วันที่ + label) → upsert เข้า `outageExceptions` ตาม date →
+   `saveToStorage()` → re-render ปฏิทิน
+4. แก้ไขข้อมูล Shift Day/Night (ชื่อ/ตำแหน่ง Lead + จำนวนคน) ในการ์ดแล้วกด "Save Team Info" → เขียนกลับเข้า
+   `shiftTeams.day`/`shiftTeams.night` → `saveToStorage()` → re-render
+5. ตาราง Outage Workload Hours per Week รวม `manHours` ของ task ตาม `task.workCategory` ที่ผู้ใช้เลือกไว้ใน
+   Task Editor Modal (4 หมวด: Critical Path/Regular Overtime/NDT & Inspections/Standby-Cost-down)
+6. panel CPM Rules เป็น read-only summary ของ `systemConfig`/`workingCalendar` เท่านั้น — กด "Open Config →
+   CPM Engine" เพื่อไปแก้ค่าจริงที่ Config
+7. กด "Edit Working Hours & Weekdays" → เปิด `#calendarModal` เดิม (ตั้งเวลาทำงาน/วันทำงานรายสัปดาห์จริง ที่
+   มีผลต่อ `isWorkday()`/CPM) → Save → `render()`
 
 ### Import / Export
-- **Export JSON/CSV**: ดาวน์โหลดไฟล์ทันทีที่ browser ฝั่งเดียว ไม่เกี่ยวกับ cloud sync
+- **Export JSON/CSV**: ดาวน์โหลดไฟล์ทันทีที่ browser ฝั่งเดียว ไม่เกี่ยวกับ cloud sync — Export JSON ใช้
+  `buildStoragePayload()` ตรงๆ จึงได้ field ครบทุกตัวรวมของใหม่ (`systemConfig`, `projectSafety`,
+  `outageExceptions`, `shiftTeams`)
 - **Import JSON**: เลือกไฟล์ผ่าน `#fileImportInput` → เขียนทับ `tasks`/`baselineHistory`/`workingCalendar`/
-  `timescaleTiers` ทั้งหมด → คำนวณ `nextId` ใหม่ → เข้าสู่ Core Edit Loop
+  `timescaleTiers`/`systemConfig`/`projectSafety`/`outageExceptions`/`shiftTeams` ทั้งหมด (field ที่ไม่มีใน
+  ไฟล์เก่าจะ fallback เป็นค่า default ผ่าน `applyLoadedPayload()`) → คำนวณ `nextId` ใหม่ → เข้าสู่ Core Edit
+  Loop
 - **Print / Export A4**: กดปุ่มใดก็ตามในกลุ่มนี้ → `triggerA4Print()` → `window.print()` → เบราว์เซอร์ใช้ CSS
   `@media print` ซ่อน header/drawer/modal/nav-rail แล้วจัด layout เป็น A4 แนวนอน
 
@@ -141,6 +193,10 @@ dependency ฯลฯ) ทุกอย่างจะไหลผ่านวง�
 ข้อมูลล่าสุด — เป็นข้อจำกัดที่ควรรู้ก่อนใช้งานพร้อมกันหลายคน/หลายเครื่อง
 
 ## 6. แผนภาพสรุป
+
+แผนภาพด้านล่างวาดเฉพาะ flow หลัก (Boot/Auth/Core Edit Loop) เพื่อไม่ให้รก — หน้า Progress/Baseline/Calendar
+และ Config modal ล้วนเป็น "ผู้บริโภค" ของ Core Edit Loop เดียวกันทั้งหมด (อ่าน state เดิมมาคำนวณ/แสดงผล แล้ว
+เขียนกลับผ่าน `saveToStorage()` เหมือนกันทุกจุด) ไม่มี data flow แยกต่างหาก จึงไม่จำเป็นต้องวาดแยก branch ใหม่
 
 ```mermaid
 flowchart TD

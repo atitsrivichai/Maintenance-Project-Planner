@@ -432,6 +432,38 @@
     transform: translate(-50%, -50%) rotate(45deg); border-radius: 2px; z-index: 2;
   }
 
+  /* Working Calendar & Shift Schedule page */
+  .cal-nav-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .cal-nav-row .cal-month-label { font-size: 13px; font-weight: 700; color: var(--dt-text-primary); }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal-grid-head { font-size: 10px; font-weight: 700; color: var(--dt-text-muted); text-transform: uppercase; text-align: center; padding-bottom: 4px; }
+  .cal-day-cell {
+    background: var(--dt-surface-base); border: 1px solid var(--dt-border-subtle); border-radius: 6px;
+    padding: 6px; min-height: 62px; font-size: 10.5px; position: relative;
+  }
+  .cal-day-cell.off { background: rgba(100,116,139,0.12); color: var(--dt-text-muted); }
+  .cal-day-cell.other-month { opacity: 0.35; }
+  .cal-day-cell.today { border-color: var(--dt-scurve-planned); border-width: 2px; }
+  .cal-day-num { font-family: var(--font-mono); font-weight: 700; font-size: 11px; color: var(--dt-text-secondary); }
+  .cal-day-off-label { font-size: 8.5px; color: var(--dt-text-muted); text-transform: uppercase; margin-top: 2px; }
+  .cal-day-shift-label { font-size: 8.5px; color: var(--dt-text-muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cal-day-exception-badge {
+    display: inline-block; margin-top: 3px; font-size: 8px; font-weight: 700; padding: 1px 4px; border-radius: 3px;
+    background: var(--dt-warning-amber); color: #3A1D02; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .exception-row-head {
+    display: grid; grid-template-columns: 1fr 2fr 0.6fr; gap: 10px; padding: 0 10px 6px;
+    font-size: 10px; font-weight: 700; color: var(--dt-text-muted); text-transform: uppercase;
+  }
+  .exception-row {
+    display: grid; grid-template-columns: 1fr 2fr 0.6fr; gap: 10px; align-items: center;
+    padding: 8px 10px; background: var(--dt-surface-base); border-radius: 6px; border: 1px solid var(--dt-border-subtle);
+    margin-bottom: 8px; font-size: 12px;
+  }
+  .exception-row:last-child { margin-bottom: 0; }
+  .shift-team-inputs { display: grid; grid-template-columns: 1fr 1fr 70px; gap: 6px; margin-top: 8px; }
+  .shift-team-inputs input { background: var(--dt-surface-panel); border: 1px solid var(--dt-border-subtle); border-radius: 4px; color: var(--dt-text-primary); font-size: 11px; padding: 5px 6px; }
+
   /* Help / User Manual Left Panel (wider, detailed, scrollable with in-page TOC) */
   .help-overlay {
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -1178,7 +1210,7 @@
       <button class="nav-rail-btn active" data-view="gantt" title="Gantt Chart"><span class="nav-rail-btn-icon">📊</span><span class="nav-rail-btn-label">Timeline</span></button>
       <button class="nav-rail-btn" data-view="dashboard" title="Dashboard ภาพรวมโครงการ"><span class="nav-rail-btn-icon">📈</span><span class="nav-rail-btn-label">Progress</span></button>
       <button class="nav-rail-btn" data-view="baseline" title="Baseline History & Comparison"><span class="nav-rail-btn-icon">📸</span><span class="nav-rail-btn-label">Baseline</span></button>
-      <button class="nav-rail-btn" id="btnNavCalendar" title="ตั้งค่าเวลาทำงานและวันหยุดปฏิทิน"><span class="nav-rail-btn-icon">📅</span><span class="nav-rail-btn-label">Calendar</span></button>
+      <button class="nav-rail-btn" id="btnNavCalendar" data-view="calendar" title="Working Calendar & Shift Schedule"><span class="nav-rail-btn-icon">📅</span><span class="nav-rail-btn-label">Calendar</span></button>
       <button class="nav-rail-btn" id="btnNavConfig" title="System & Project Configuration"><span class="nav-rail-btn-icon">⚙️</span><span class="nav-rail-btn-label">Config</span></button>
     </div>
 
@@ -1218,6 +1250,7 @@
     <!-- Dashboard Overview View -->
     <div class="dashboard-view" id="dashboardView" style="display:none;"></div>
     <div class="dashboard-view" id="baselineView" style="display:none;"></div>
+    <div class="dashboard-view" id="calendarView" style="display:none;"></div>
   </div>
 </div>
 
@@ -1360,6 +1393,16 @@
             <option value="Std 5-Day Office (Sat-Sun Off)">Std 5-Day Office (Sat-Sun Off)</option>
             <option value="Std 6-Day Plant (Sun Off)">Std 6-Day Plant (Sun Off)</option>
             <option value="24/7 Continuous Ops">24/7 Continuous Ops</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Outage Workload Category</label>
+          <select class="form-select" id="modalWorkCategory">
+            <option value="">— ไม่ระบุ —</option>
+            <option value="critical">🔴 Critical Path</option>
+            <option value="overtime">🟠 Regular Overtime</option>
+            <option value="ndt">🔵 NDT & Inspections</option>
+            <option value="standby">⚪ Standby / Cost-down</option>
           </select>
         </div>
       </div>
@@ -1778,6 +1821,14 @@
     workdays: [1, 2, 3, 4, 5] // Mon-Fri
   };
 
+  // Display-only blackout/holiday dates for the Working Calendar page — NEVER read by isWorkday()/CPM
+  let outageExceptions = []; // [{date:'YYYY-MM-DD', label}], keyed by date (add on existing date = upsert label)
+
+  let shiftTeams = {
+    day:   { leadName: '', leadRole: '', headcount: 0 },
+    night: { leadName: '', leadRole: '', headcount: 0 }
+  };
+
   let projectSafety = {
     bufferDays: 5,
     lostTimeIncidents: 0,
@@ -1804,9 +1855,9 @@
   // --- SAMPLE PLAN BUNDLE (Project Test Function 01) ---
   // Used by "Create another plan..." and "Reset to Sample Plan" — includes tasks + baseline + calendar + timescale
   let defaultTasks = [
-    { id: 12, name: "Task A01", type: "task", status: "completed", color: "#33db4f", start: "2026-06-01", end: "2026-06-12", targetStart: "2026-07-30", targetEnd: "2026-08-06", progress: 100, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "", budgetCost: 50000, actualCost: 48000, manHours: 80 },
-    { id: 16, name: "Task A02", type: "task", status: "completed", color: "#3498db", start: "2026-06-15", end: "2026-06-19", targetStart: "2026-07-30", targetEnd: "2026-08-06", progress: 100, milestone: false, deps: [{id:12, type:"FS"}], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "", budgetCost: 30000, actualCost: 33000, manHours: 40 },
-    { id: 18, name: "Task A03", type: "task", status: "inprogress", color: "#3498db", start: "2026-06-22", end: "2026-06-26", targetStart: "2026-07-30", targetEnd: "2026-08-07", progress: 40, milestone: false, deps: [{id:16, type:"FS"}], parentId: null, collapsed: false, progressMode: "auto", desc: "ตรวจสอบ NDT และถอด Rotor ตามขั้นตอนความปลอดภัย", owner: "Wichai K.", hidden: false, team: "TURB-MECH-A", priority: "Major Component", criticalOverride: false, calendarLabel: "Std 6-Day Plant (Sun Off)", attachment: "", budgetCost: 20000, actualCost: 9000, manHours: 32 },
+    { id: 12, name: "Task A01", type: "task", status: "completed", color: "#33db4f", start: "2026-06-01", end: "2026-06-12", targetStart: "2026-07-30", targetEnd: "2026-08-06", progress: 100, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "", budgetCost: 50000, actualCost: 48000, manHours: 80, workCategory: "critical" },
+    { id: 16, name: "Task A02", type: "task", status: "completed", color: "#3498db", start: "2026-06-15", end: "2026-06-19", targetStart: "2026-07-30", targetEnd: "2026-08-06", progress: 100, milestone: false, deps: [{id:12, type:"FS"}], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "", budgetCost: 30000, actualCost: 33000, manHours: 40, workCategory: "overtime" },
+    { id: 18, name: "Task A03", type: "task", status: "inprogress", color: "#3498db", start: "2026-06-22", end: "2026-06-26", targetStart: "2026-07-30", targetEnd: "2026-08-07", progress: 40, milestone: false, deps: [{id:16, type:"FS"}], parentId: null, collapsed: false, progressMode: "auto", desc: "ตรวจสอบ NDT และถอด Rotor ตามขั้นตอนความปลอดภัย", owner: "Wichai K.", hidden: false, team: "TURB-MECH-A", priority: "Major Component", criticalOverride: false, calendarLabel: "Std 6-Day Plant (Sun Off)", attachment: "", budgetCost: 20000, actualCost: 9000, manHours: 32, workCategory: "ndt" },
     { id: 19, name: "Task B01", type: "task", status: "inprogress", color: "#3498db", start: "2026-06-08", end: "2026-06-10", targetStart: "2026-07-30", targetEnd: "2026-08-07", progress: 0, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: false, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "", budgetCost: 0, actualCost: 0, manHours: 0 },
     { id: 20, name: "Marks 01", type: "mark", status: "delay", color: "#E74C3C", start: "2026-07-30", end: "2026-07-30", targetStart: "2026-07-30", targetEnd: "2026-07-30", progress: 0, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: true, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "" },
     { id: 21, name: "Highlighte 01", type: "highlight", status: "inprogress", color: "#2ECC71", start: "2026-07-30", end: "2026-08-06", targetStart: "2026-07-30", targetEnd: "2026-08-06", progress: 0, milestone: false, deps: [], parentId: null, collapsed: false, progressMode: "manual", desc: "", owner: "", hidden: true, team: "", priority: "", criticalOverride: false, calendarLabel: "", attachment: "" },
@@ -2010,7 +2061,8 @@
     return {
       projectName: document.getElementById('projectNameInput').value,
       tasks, baselineHistory, currentZoom, showCriticalPath, showSCurve,
-      viewMode, viewStart, viewEnd, workingCalendar, timescaleTiers, projectSafety, systemConfig
+      viewMode, viewStart, viewEnd, workingCalendar, timescaleTiers, projectSafety, systemConfig,
+      outageExceptions, shiftTeams
     };
   }
 
@@ -2044,6 +2096,7 @@
         if(t.budgetCost === undefined) t.budgetCost = 0;
         if(t.actualCost === undefined) t.actualCost = 0;
         if(t.manHours === undefined) t.manHours = 0;
+        if(t.workCategory === undefined) t.workCategory = '';
       });
     }
     if(Array.isArray(payload.baselineHistory)) baselineHistory = payload.baselineHistory;
@@ -2055,6 +2108,13 @@
     if(payload.projectSafety) projectSafety = { ...projectSafety, ...payload.projectSafety };
     if(payload.systemConfig) systemConfig = { ...systemConfig, ...payload.systemConfig };
     if(payload.timescaleTiers) timescaleTiers = payload.timescaleTiers;
+    outageExceptions = Array.isArray(payload.outageExceptions) ? payload.outageExceptions : [];
+    if(payload.shiftTeams){
+      shiftTeams = {
+        day: { ...shiftTeams.day, ...(payload.shiftTeams.day || {}) },
+        night: { ...shiftTeams.night, ...(payload.shiftTeams.night || {}) }
+      };
+    }
 
     nextId = Math.max(...tasks.map(t=>t.id), 0) + 1;
     if(baselineHistory.length) nextHistId = Math.max(...baselineHistory.map(h=>h.id), 0) + 1;
@@ -3271,13 +3331,14 @@
     document.getElementById('scurveClip').style.display = view === 'gantt' ? '' : 'none';
     document.getElementById('dashboardView').style.display = view === 'dashboard' ? '' : 'none';
     document.getElementById('baselineView').style.display = view === 'baseline' ? '' : 'none';
+    document.getElementById('calendarView').style.display = view === 'calendar' ? '' : 'none';
     if(view === 'dashboard') renderDashboard();
     if(view === 'baseline') renderBaselinePage();
+    if(view === 'calendar') renderCalendarPage();
   }
   document.querySelectorAll('.nav-rail-btn[data-view]').forEach(btn => {
     btn.addEventListener('click', () => switchView(btn.dataset.view));
   });
-  document.getElementById('btnNavCalendar').addEventListener('click', openCalendarModal);
   document.getElementById('btnNavConfig').addEventListener('click', openConfigModal);
 
   // --- DASHBOARD OVERVIEW RENDERER ---
@@ -3875,6 +3936,236 @@
     });
   }
 
+  // --- WORKING CALENDAR & SHIFT SCHEDULE PAGE ---
+  let calendarViewMonthOffset = 0;
+
+  function buildMonthGrid(year, month){
+    const firstOfMonth = new Date(year, month, 1);
+    const startWeekday = firstOfMonth.getDay();
+    const gridStart = addDays(firstOfMonth, -startWeekday);
+    const cells = [];
+    for(let i = 0; i < 42; i++) cells.push(addDays(gridStart, i));
+    return cells;
+  }
+
+  function renderCalendarPage(){
+    const container = document.getElementById('calendarView');
+    const todayStr = fmtDate(new Date());
+
+    const dayCount = workingCalendar.workdays.length;
+    const workingModelLabel = dayCount >= 7 ? '24/7 Continuous Ops' : (dayCount === 6 ? 'Std 6-Day Plant' : (dayCount === 5 ? 'Std 5-Day Office' : `${dayCount}-Day Custom`));
+    const [sh, sm] = workingCalendar.startTime.split(':').map(Number);
+    const [eh, em] = workingCalendar.endTime.split(':').map(Number);
+    const [bsh, bsm] = workingCalendar.breakStart.split(':').map(Number);
+    const [beh, bem] = workingCalendar.breakEnd.split(':').map(Number);
+    const totalMin = Math.max(0, (eh * 60 + em) - (sh * 60 + sm));
+    const breakMin = Math.max(0, (beh * 60 + bem) - (bsh * 60 + bsm));
+    const hoursPerDay = ((totalMin - breakMin) / 60).toFixed(1);
+
+    const dayCrew = shiftTeams.day.headcount || 0;
+    const nightCrew = shiftTeams.night.headcount || 0;
+    const turnaroundLabel = (dayCrew > 0 && nightCrew > 0) ? '2-Shift Continuous' : ((dayCrew > 0 || nightCrew > 0) ? '1-Shift Standard' : 'Not Configured');
+    const scheduleEngineLabel = systemConfig.dependencyLagMode === 'calendar' ? 'CPM Calendar Duration' : 'CPM Auto Duration';
+
+    // Month calendar grid — pure read+display pass over isWorkday()/outageExceptions, never mutates either
+    const now = new Date();
+    const viewDate = new Date(now.getFullYear(), now.getMonth() + calendarViewMonthOffset, 1);
+    const year = viewDate.getFullYear();
+    const month = viewDate.getMonth();
+    const monthLabel = viewDate.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+    const dayHeadNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const calGridHtml = dayHeadNames.map(d => `<div class="cal-grid-head">${d}</div>`).join('') +
+      buildMonthGrid(year, month).map(cellDate => {
+        const dateStr = fmtDate(cellDate);
+        const inMonth = cellDate.getMonth() === month;
+        const workday = isWorkday(cellDate);
+        const isToday = dateStr === todayStr;
+        const exception = outageExceptions.find(e => e.date === dateStr);
+        const classes = ['cal-day-cell'];
+        if(!workday) classes.push('off');
+        if(!inMonth) classes.push('other-month');
+        if(isToday) classes.push('today');
+        const shiftLabel = (dayCrew || nightCrew) ? `${dayCrew ? 'Shift Day' : ''}${dayCrew && nightCrew ? ' / ' : ''}${nightCrew ? 'Shift Night' : ''}` : '';
+        return `
+          <div class="${classes.join(' ')}">
+            <div class="cal-day-num">${cellDate.getDate()}</div>
+            ${!workday ? '<div class="cal-day-off-label">OFF DAY</div>' : (shiftLabel ? `<div class="cal-day-shift-label">${shiftLabel}</div>` : '')}
+            ${exception ? `<div class="cal-day-exception-badge" title="${escapeHtml(exception.label)}">${escapeHtml(exception.label)}</div>` : ''}
+          </div>`;
+      }).join('');
+
+    // Outage Workload Hours per Week — pure aggregation of the user-set workCategory field, independent of CPM
+    const categories = [
+      { key: 'critical', label: 'Critical Path', color: 'var(--dt-critical-path)' },
+      { key: 'overtime', label: 'Regular Overtime', color: 'var(--dt-warning-amber)' },
+      { key: 'ndt', label: 'NDT & Inspections', color: '#3498DB' },
+      { key: 'standby', label: 'Standby / Cost-down', color: 'var(--dt-text-muted)' }
+    ];
+    const realTasksForWorkload = tasks.filter(t => !t.hidden && t.type !== 'mark' && t.type !== 'highlight');
+    const categoryTotals = categories.map(c => ({
+      ...c,
+      hours: realTasksForWorkload.filter(t => t.workCategory === c.key).reduce((s, t) => s + (t.manHours || 0), 0)
+    }));
+    const maxHours = Math.max(1, ...categoryTotals.map(c => c.hours));
+    const uncategorizedCount = realTasksForWorkload.filter(t => !t.workCategory).length;
+    const workloadRowsHtml = categoryTotals.map(c => `
+      <div class="overlay-row" style="grid-template-columns:1.3fr 3fr;">
+        <div class="overlay-row-label">${escapeHtml(c.label)}</div>
+        <div class="overlay-row-track">
+          <div class="overlay-row-bar current" style="left:0; width:${c.hours / maxHours * 100}%; top:6px; height:10px; background:${c.color};" title="${c.hours} ชม."></div>
+        </div>
+      </div>`).join('') +
+      `<div class="dash-section-subtitle" style="margin-top:8px;">${categoryTotals.map(c => `${escapeHtml(c.label)}: ${c.hours} ชม.`).join(' • ')}${uncategorizedCount ? ` • ${uncategorizedCount} Task ยังไม่ระบุหมวด` : ''}</div>`;
+
+    // Outage Exceptions list — display-only, never read by isWorkday/CPM
+    const exceptionRowsHtml = outageExceptions.length ? outageExceptions.map(e => `
+      <div class="exception-row">
+        <div>${e.date}</div>
+        <div>${escapeHtml(e.label)}</div>
+        <div style="text-align:right;"><button class="btn-modal danger exception-del" data-date="${e.date}" style="padding:3px 8px; font-size:11px;">✕</button></div>
+      </div>`).join('') : '<div class="dash-list-empty">ยังไม่มีวันหยุด/Blackout ที่บันทึกไว้</div>';
+
+    container.innerHTML = `
+      <div class="dash-grid">
+        <div class="dash-tile">
+          <div class="dash-tile-label"><span>Working Model</span></div>
+          <div class="dash-tile-value" style="font-size:18px;">${workingModelLabel}</div>
+          <div class="dash-tile-sub">${hoursPerDay} ชม./วัน (${workingCalendar.startTime}–${workingCalendar.endTime})</div>
+        </div>
+        <div class="dash-tile">
+          <div class="dash-tile-label"><span>Turnaround Mode</span></div>
+          <div class="dash-tile-value" style="font-size:18px;">${turnaroundLabel}</div>
+          <div class="dash-tile-sub">Day: ${dayCrew} คน / Night: ${nightCrew} คน</div>
+        </div>
+        <div class="dash-tile">
+          <div class="dash-tile-label"><span>Planned Exceptions</span></div>
+          <div class="dash-tile-value">${outageExceptions.length}</div>
+          <div class="dash-tile-sub">${outageExceptions.length ? `ล่าสุด: ${outageExceptions[outageExceptions.length - 1].date}` : 'ยังไม่มีวันหยุด/Blackout'}</div>
+        </div>
+        <div class="dash-tile">
+          <div class="dash-tile-label"><span>Schedule Engine</span></div>
+          <div class="dash-tile-value" style="font-size:18px;">${scheduleEngineLabel}</div>
+          <div class="dash-tile-sub">Lag Mode: ${systemConfig.dependencyLagMode}</div>
+        </div>
+      </div>
+
+      <div class="dash-section">
+        <div class="cal-nav-row">
+          <button type="button" class="btn-modal ghost" id="btnCalPrevMonth">‹ Prev</button>
+          <div class="cal-month-label">${monthLabel}</div>
+          <button type="button" class="btn-modal ghost" id="btnCalNextMonth">Next ›</button>
+        </div>
+        <div class="cal-grid">${calGridHtml}</div>
+      </div>
+
+      <div class="dash-two-col">
+        <div class="dash-section">
+          <div class="dash-section-title">👷 Shift Day / Night Team</div>
+          <div class="dash-team-grid">
+            <div class="dash-team-card">
+              <div class="dash-team-card-top">☀️ Shift Day <span class="dash-team-card-count">${dayCrew} pers</span></div>
+              <div class="shift-team-inputs">
+                <input type="text" id="shiftDayLeadName" placeholder="ชื่อ Lead" value="${escapeHtml(shiftTeams.day.leadName)}">
+                <input type="text" id="shiftDayLeadRole" placeholder="ตำแหน่ง" value="${escapeHtml(shiftTeams.day.leadRole)}">
+                <input type="number" id="shiftDayHeadcount" min="0" value="${shiftTeams.day.headcount}">
+              </div>
+            </div>
+            <div class="dash-team-card">
+              <div class="dash-team-card-top">🌙 Shift Night <span class="dash-team-card-count">${nightCrew} pers</span></div>
+              <div class="shift-team-inputs">
+                <input type="text" id="shiftNightLeadName" placeholder="ชื่อ Lead" value="${escapeHtml(shiftTeams.night.leadName)}">
+                <input type="text" id="shiftNightLeadRole" placeholder="ตำแหน่ง" value="${escapeHtml(shiftTeams.night.leadRole)}">
+                <input type="number" id="shiftNightHeadcount" min="0" value="${shiftTeams.night.headcount}">
+              </div>
+            </div>
+          </div>
+          <button type="button" class="btn-modal primary" id="btnSaveShiftTeams" style="margin-top:10px; padding:6px 12px; font-size:12px;">💾 Save Team Info</button>
+        </div>
+        <div class="dash-section">
+          <div class="dash-section-title">🔒 CPM Rules (Read-Only — Managed in Config)</div>
+          <div class="dash-evm-stat" style="margin-bottom:8px;">
+            <div class="dash-evm-stat-label">Dependency Lag Calculation</div>
+            <div class="config-readonly-box">${systemConfig.dependencyLagMode === 'calendar' ? 'Calendar Days (รวมวันหยุด)' : 'Workdays Only (ข้ามวันหยุด)'}</div>
+          </div>
+          <div class="dash-evm-stat" style="margin-bottom:8px;">
+            <div class="dash-evm-stat-label">Critical Float Threshold</div>
+            <div class="config-readonly-box">Total Float ≤ ${systemConfig.cpmFloatThreshold} วัน</div>
+          </div>
+          <div class="dash-evm-stat" style="margin-bottom:8px;">
+            <div class="dash-evm-stat-label">Workday Pattern</div>
+            <div class="config-readonly-box">${workingCalendar.workdays.length}/7 วันต่อสัปดาห์</div>
+          </div>
+          <div class="dash-evm-stat" style="margin-bottom:12px;">
+            <div class="dash-evm-stat-label">Date Strategy</div>
+            <div class="config-readonly-box">${systemConfig.dateStrategy === 'cod' ? 'Constrained by Target COD' : 'Auto Project End'}</div>
+          </div>
+          <button type="button" class="btn-modal ghost" id="btnCalOpenConfig" style="font-size:11px;">⚙️ Open Config → CPM Engine</button>
+        </div>
+      </div>
+
+      <div class="dash-section">
+        <div class="dash-section-title">📊 Outage Workload Hours per Week</div>
+        ${workloadRowsHtml}
+      </div>
+
+      <div class="dash-section">
+        <div class="dash-section-header-row">
+          <div class="dash-section-title">🚧 Outage Exceptions (Blackout Windows)</div>
+          <button type="button" class="btn-modal primary" id="btnAddOutageException" style="padding:6px 12px; font-size:12px;">+ Add Blackout Date</button>
+        </div>
+        <div class="exception-row-head"><span>Date</span><span>Label</span><span style="text-align:right;">Actions</span></div>
+        ${exceptionRowsHtml}
+        <div class="dash-section-subtitle" style="margin-top:10px;">⚙️ วันหยุด/Blackout เหล่านี้แสดงผลบนปฏิทินเพื่อการวางแผนเท่านั้น ไม่มีผลต่อการคำนวณ CPM/วันทำงาน</div>
+        <button type="button" class="btn-modal ghost" id="btnCalEditWorkingHours" style="margin-top:10px; font-size:11px;">⚙️ Edit Working Hours & Weekdays</button>
+      </div>
+    `;
+
+    document.getElementById('btnCalPrevMonth').addEventListener('click', () => { calendarViewMonthOffset--; renderCalendarPage(); });
+    document.getElementById('btnCalNextMonth').addEventListener('click', () => { calendarViewMonthOffset++; renderCalendarPage(); });
+
+    document.getElementById('btnSaveShiftTeams').addEventListener('click', () => {
+      shiftTeams.day.leadName = document.getElementById('shiftDayLeadName').value;
+      shiftTeams.day.leadRole = document.getElementById('shiftDayLeadRole').value;
+      shiftTeams.day.headcount = Math.max(0, parseInt(document.getElementById('shiftDayHeadcount').value, 10) || 0);
+      shiftTeams.night.leadName = document.getElementById('shiftNightLeadName').value;
+      shiftTeams.night.leadRole = document.getElementById('shiftNightLeadRole').value;
+      shiftTeams.night.headcount = Math.max(0, parseInt(document.getElementById('shiftNightHeadcount').value, 10) || 0);
+      saveToStorage();
+      renderCalendarPage();
+    });
+
+    document.getElementById('btnCalOpenConfig').addEventListener('click', () => {
+      openConfigModal();
+      switchConfigTab('cpm');
+    });
+
+    document.getElementById('btnAddOutageException').addEventListener('click', () => {
+      const dateInput = prompt('Blackout date (YYYY-MM-DD):', fmtDate(new Date()));
+      if(dateInput === null || !dateInput.trim()) return;
+      const dateStr = dateInput.trim();
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)){ alert('รูปแบบวันที่ไม่ถูกต้อง (ต้องเป็น YYYY-MM-DD)'); return; }
+      const label = prompt('Label (e.g. "NDT Test", "Scheduled Electrical Grid Test"):', '');
+      if(label === null) return;
+      outageExceptions = outageExceptions.filter(e => e.date !== dateStr);
+      outageExceptions.push({ date: dateStr, label });
+      outageExceptions.sort((a, b) => a.date.localeCompare(b.date));
+      saveToStorage();
+      renderCalendarPage();
+    });
+
+    container.querySelectorAll('.exception-del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const date = btn.dataset.date;
+        if(!confirm(`ลบ Blackout Date "${date}" ทิ้งหรือไม่?`)) return;
+        outageExceptions = outageExceptions.filter(e => e.date !== date);
+        saveToStorage();
+        renderCalendarPage();
+      });
+    });
+
+    document.getElementById('btnCalEditWorkingHours').addEventListener('click', openCalendarModal);
+  }
+
   // --- TIMESCALE MODAL CONTROLLER ---
   function openTimescaleModal(){
     document.getElementById('tsYears').checked = timescaleTiers.years;
@@ -4095,6 +4386,7 @@
     document.getElementById('modalPriority').value = t.priority || '';
     document.getElementById('modalCriticalOverride').checked = !!t.criticalOverride;
     document.getElementById('modalCalendarLabel').value = t.calendarLabel || '';
+    document.getElementById('modalWorkCategory').value = t.workCategory || '';
     document.getElementById('modalAttachment').value = t.attachment || '';
     document.getElementById('modalBudgetCost').value = t.budgetCost || 0;
     document.getElementById('modalActualCost').value = t.actualCost || 0;
@@ -4199,6 +4491,7 @@
     t.priority = document.getElementById('modalPriority').value;
     t.criticalOverride = document.getElementById('modalCriticalOverride').checked;
     t.calendarLabel = document.getElementById('modalCalendarLabel').value;
+    t.workCategory = document.getElementById('modalWorkCategory').value;
     t.attachment = document.getElementById('modalAttachment').value;
     t.budgetCost = Math.max(0, parseFloat(document.getElementById('modalBudgetCost').value) || 0);
     t.actualCost = Math.max(0, parseFloat(document.getElementById('modalActualCost').value) || 0);

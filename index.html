@@ -222,25 +222,74 @@
   /* Google Sign-In Login Gate */
   .login-overlay {
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-    background: linear-gradient(135deg, #2B303A, #1A1D24); z-index: 500;
+    background: radial-gradient(circle at 50% 30%, #0F172A 0%, var(--dt-surface-base) 70%); z-index: 500;
     display: flex; align-items: center; justify-content: center;
     opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
   }
   .login-overlay.open { opacity: 1; pointer-events: auto; }
   .login-card {
-    width: 340px; max-width: 90vw; background: #FFF; border-radius: 12px;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.4); padding: 32px 28px; text-align: center;
+    width: 420px; max-width: 92vw; background: var(--dt-surface-panel); border: 1px solid var(--dt-border-subtle);
+    border-radius: 12px; box-shadow: 0 20px 40px -15px rgba(0,0,0,0.7); padding: 32px 28px 28px;
+    text-align: left; position: relative; overflow: hidden;
   }
-  .login-title { font-size: 17px; font-weight: 700; color: var(--text-main); margin-bottom: 6px; }
-  .login-sub { font-size: 12.5px; color: var(--text-muted); margin-bottom: 22px; line-height: 1.5; }
+  .login-card::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: linear-gradient(90deg, var(--dt-primary), var(--dt-secondary));
+  }
+  .login-brand-row { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+  .login-logo {
+    width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--dt-primary), var(--dt-tertiary));
+    display: flex; align-items: center; justify-content: center; font-size: 18px;
+  }
+  .login-brand-name { font-family: var(--font-headline); font-weight: 700; font-size: 14px; color: var(--dt-text-primary); line-height: 1.3; }
+  .login-brand-tag { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.05em; color: var(--dt-text-muted); text-transform: uppercase; }
+  .login-title { font-family: var(--font-headline); font-size: 21px; font-weight: 700; color: var(--dt-text-primary); margin-bottom: 4px; }
+  .login-sub {
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--dt-text-secondary); margin-bottom: 18px; line-height: 1.5;
+  }
+  .login-info-box {
+    display: flex; gap: 10px; align-items: flex-start; text-align: left;
+    background: rgba(37,99,235,0.08); border: 1px solid var(--dt-border-subtle); border-radius: 6px;
+    padding: 12px 14px; margin-bottom: 20px;
+  }
+  .login-info-icon { font-size: 16px; flex-shrink: 0; }
+  .login-info-box > div:last-child { min-width: 0; flex: 1; }
+  .login-info-title { font-size: 12px; font-weight: 600; color: var(--dt-text-primary); margin-bottom: 4px; line-height: 1.4; }
+  .login-info-sub { font-size: 11px; color: var(--dt-text-secondary); line-height: 1.5; }
+  .login-info-sub code {
+    background: var(--dt-surface-card); padding: 1px 4px; border-radius: 3px;
+    font-family: var(--font-mono); color: var(--dt-scurve-planned); font-size: 10.5px;
+  }
   .btn-google-signin {
-    width: 100%; padding: 11px; border-radius: 8px; border: 1px solid #DCDFE6; background: #FFF;
+    width: 100%; padding: 11px; border-radius: 8px; border: 1px solid var(--dt-border-strong); background: #FFF;
     font-size: 13.5px; font-weight: 600; color: #34495E; cursor: pointer; display: flex;
     align-items: center; justify-content: center; gap: 8px; transition: all 0.15s;
   }
-  .btn-google-signin:hover { background: #F4F6F8; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-  .login-status { margin-top: 14px; font-size: 11.5px; color: var(--text-muted); min-height: 16px; }
-  .login-status.error { color: var(--status-problem); }
+  .btn-google-signin:hover { background: #F4F6F8; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
+  .login-status {
+    margin-top: 14px; font-size: 11.5px; color: var(--dt-text-muted); min-height: 16px; text-align: center;
+  }
+  .login-status.error {
+    color: var(--dt-critical-path); background: var(--dt-critical-path-bg); border: 1px solid var(--dt-critical-path);
+    border-radius: 6px; padding: 8px 10px; text-align: left; line-height: 1.4;
+  }
+  .login-boot-log {
+    margin-top: 20px; background: var(--dt-surface-base); border: 1px solid var(--dt-border-subtle);
+    border-radius: 6px; padding: 12px 14px;
+  }
+  .login-boot-log-title {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--dt-text-secondary); margin-bottom: 8px;
+  }
+  .login-boot-log-line {
+    font-family: var(--font-mono); font-size: 10.5px; color: var(--dt-text-secondary);
+    margin: 4px 0; display: flex; gap: 6px; align-items: center;
+  }
+  .login-boot-log-line .ok { color: var(--dt-secondary); }
+  .login-boot-log-line .pending { color: var(--dt-warning-amber); }
+  .login-boot-log-line .lock { color: var(--dt-text-muted); }
 
   /* Left Navigation Rail (icon switcher: Gantt / Dashboard / future views) */
   .nav-rail {
@@ -619,10 +668,39 @@
 <!-- Google Sign-In Login Gate -->
 <div class="login-overlay open" id="loginOverlay">
   <div class="login-card">
-    <div class="login-title">🛠️ Maintenance Project Planner</div>
-    <div class="login-sub">เข้าสู่ระบบด้วย Google เพื่อเปิดใช้งานแผนงานและซิงค์ข้อมูลของคุณ</div>
-    <button class="btn-google-signin" id="btnGoogleSignIn"><span>🔑</span> Sign in with Google</button>
+    <div class="login-brand-row">
+      <div class="login-logo">🛠️</div>
+      <div>
+        <div class="login-brand-name">MPP Planner</div>
+        <div class="login-brand-tag">Maintenance System</div>
+      </div>
+    </div>
+    <div class="login-title">Maintenance Project Planner</div>
+    <div class="login-sub">Plant Turnaround &amp; CPM Scheduling System</div>
+    <div class="login-info-box">
+      <span class="login-info-icon">🛡️</span>
+      <div>
+        <div class="login-info-title">เฉพาะวิศวกรผู้มีสิทธิ์เข้าถึงโครงการ (Authorized Engineers Only)</div>
+        <div class="login-info-sub">ระบบจะตรวจสอบสิทธิ์ Read/Write ผ่าน Google Account และทำการซิงค์ข้อมูลจาก Firestore (<code>plans/{uid}</code>) โดยอัตโนมัติ</div>
+      </div>
+    </div>
+    <button class="btn-google-signin" id="btnGoogleSignIn">
+      <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path fill="#4285F4" d="M17.64 9.2045c0-.6381-.0573-1.2518-.1636-1.8409H9v3.4814h4.8436c-.2086 1.125-.8427 2.0782-1.7959 2.7164v2.2581h2.9087c1.7018-1.5668 2.6836-3.8741 2.6836-6.615z"/>
+        <path fill="#34A853" d="M9 18c2.43 0 4.4673-.806 5.9564-2.1805l-2.9087-2.2581c-.8059.54-1.8368.8591-3.0477.8591-2.344 0-4.3282-1.5831-5.036-3.7104H.9573v2.3318C2.4382 15.9832 5.4818 18 9 18z"/>
+        <path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.2822-1.1168-.2822-1.71s.1023-1.17.2822-1.71V4.9582H.9573C.3477 6.1732 0 7.5477 0 9s.3477 2.8268.9573 4.0418L3.964 10.71z"/>
+        <path fill="#EA4335" d="M9 3.5795c1.3214 0 2.5077.4541 3.4405 1.346l2.5813-2.5814C13.4632.8918 11.426 0 9 0 5.4818 0 2.4382 2.0168.9573 4.9582L3.964 7.29C4.6718 5.1627 6.656 3.5795 9 3.5795z"/>
+      </svg>
+      ลงชื่อเข้าใช้ด้วย Google (Sign in with Google)
+    </button>
     <div class="login-status" id="loginStatusMsg"></div>
+    <div class="login-boot-log">
+      <div class="login-boot-log-title">Boot Sequence &amp; Environment</div>
+      <div class="login-boot-log-line"><span class="ok">✓</span> LocalStorage v6 Cache Detected</div>
+      <div class="login-boot-log-line"><span class="ok">✓</span> Firebase JS SDK v10.13.2 Initialized</div>
+      <div class="login-boot-log-line"><span class="pending">⏳</span> Identity Pipeline: Waiting Provider</div>
+      <div class="login-boot-log-line"><span class="lock">🔒</span> Read-Write Guarded by Firestore Rules</div>
+    </div>
   </div>
 </div>
 

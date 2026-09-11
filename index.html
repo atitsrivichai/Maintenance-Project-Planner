@@ -325,6 +325,7 @@
   .dash-tile-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 10.5px; color: var(--dt-text-muted); }
   .dash-tile-footer .warn { color: var(--dt-warning-amber); }
   .dash-tile-footer .crit { color: var(--dt-critical-path); }
+  .dash-tile-sub { font-size: 11px; color: var(--dt-text-muted); margin-top: 4px; line-height: 1.4; }
   .dash-tile-footer .ok { color: var(--dt-scurve-actual); }
   .dash-chip { font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px; white-space: nowrap; letter-spacing: 0.3px; }
   .dash-chip-red { background: var(--dt-critical-path); color: #FFF; }
@@ -3633,8 +3634,8 @@
       });
       if(worst){
         varianceHtml = `
-          <div class="dash-section" style="background:var(--dt-critical-path-bg); border-color:var(--dt-critical-path); display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-            <div>⚠️ <b>Critical Variance Detected vs ${escapeHtml(officialBaseline.label)}:</b>
+          <div class="dash-section" style="background:var(--dt-critical-path-bg); border-color:var(--dt-critical-path); color:var(--dt-text-primary); display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <div>⚠️ <b style="color:var(--dt-critical-path);">Critical Variance Detected vs ${escapeHtml(officialBaseline.label)}:</b>
               +${worst.slip} วันบน Critical Path — Task "${escapeHtml(worst.t.name)}" ขยายจากแผนเดิม (${worst.snap.targetEnd} → ${worst.t.end})
             </div>
           </div>`;
@@ -4334,7 +4335,10 @@
 
     const baselineSelect = document.getElementById('cfgOfficialBaseline');
     baselineSelect.innerHTML = '<option value="">— ไม่ระบุ —</option>' +
-      baselineHistory.map(h => `<option value="${h.id}">${escapeHtml(h.label)}</option>`).join('');
+      baselineHistory
+        .filter(h => (h.state || 'standby') !== 'archived' || h.id === systemConfig.officialBaselineId)
+        .map(h => `<option value="${h.id}">${escapeHtml(h.label)}${h.state === 'archived' ? ' (Archived)' : ''}</option>`)
+        .join('');
     baselineSelect.value = systemConfig.officialBaselineId || '';
 
     document.getElementById('cfgCurrencyUnit').value = systemConfig.currencyUnit;

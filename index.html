@@ -647,14 +647,6 @@
   .color-picker-box { display: flex; align-items: center; gap: 8px; }
   .color-picker-box input[type="color"] { width: 34px; height: 32px; border: 1px solid var(--dt-border-strong); border-radius: 5px; padding: 0; cursor: pointer; background: var(--dt-surface-base); }
 
-  .date-input-row { display: flex; gap: 6px; }
-  .date-input-row .form-input { flex: 1; min-width: 0; }
-  .btn-date-pick {
-    flex: 0 0 32px; width: 32px; border: 1px solid var(--dt-border-strong); border-radius: 5px;
-    background: var(--dt-surface-base); color: var(--dt-text-secondary); cursor: pointer; font-size: 13px;
-  }
-  .btn-date-pick:hover { background: var(--dt-surface-hover); color: var(--dt-text-primary); }
-
   .date-calculation-row {
     display: flex; align-items: center; gap: 8px; background: var(--dt-surface-base); padding: 10px; border-radius: 6px; border: 1px solid var(--dt-border-subtle);
   }
@@ -1167,10 +1159,7 @@
       <div class="date-calculation-row" style="margin-top:12px;">
         <div class="form-group" id="groupStart">
           <label class="form-label" id="labelStart">Start Date</label>
-          <div class="date-input-row">
-            <input type="date" class="form-input" id="modalStart">
-            <button type="button" class="btn-date-pick" data-target="modalStart" title="เลือกวันที่จากปฏิทิน">📅</button>
-          </div>
+          <input type="date" class="form-input" id="modalStart">
         </div>
         <span class="arrow-icon date-arrow-icon" id="arrow1">→</span>
         <div class="form-group" id="groupWeekdays" style="flex:0 0 130px;">
@@ -1182,10 +1171,7 @@
         <span class="arrow-icon date-arrow-icon" id="arrow2">→</span>
         <div class="form-group" id="groupEnd">
           <label class="form-label">Finish Date</label>
-          <div class="date-input-row">
-            <input type="date" class="form-input" id="modalEnd">
-            <button type="button" class="btn-date-pick" data-target="modalEnd" title="เลือกวันที่จากปฏิทิน">📅</button>
-          </div>
+          <input type="date" class="form-input" id="modalEnd">
         </div>
       </div>
 
@@ -3134,13 +3120,6 @@
   document.getElementById('btnDepsAddLink').addEventListener('click', addDepFromInput);
   document.getElementById('modalDepsAddInput').addEventListener('keydown', e => {
     if(e.key === 'Enter'){ e.preventDefault(); addDepFromInput(); }
-  });
-
-  document.querySelectorAll('.btn-date-pick').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const inp = document.getElementById(btn.dataset.target);
-      if(inp.showPicker) inp.showPicker(); else inp.focus();
-    });
   });
 
   document.getElementById('modalProgressRange').addEventListener('input', e => {

@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Maintenance Project Planner V.12 (Online / Firestore Cloud Sync)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
@@ -101,8 +104,35 @@
     
     --amber-primary: #E67E22;
     --amber-hover: #D35400;
-    --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-    --font-sans: -apple-system, "Segoe UI", "Noto Sans Thai", Roboto, Arial, sans-serif;
+    --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    --font-sans: "Be Vietnam Pro", -apple-system, "Segoe UI", "Noto Sans Thai", Roboto, Arial, sans-serif;
+    --font-headline: "Space Grotesk", "Be Vietnam Pro", -apple-system, "Segoe UI", "Noto Sans Thai", Roboto, Arial, sans-serif;
+
+    /* --- Industrial dark palette (from Stitch DESIGN.md) — introduced in Step 1, applied to
+       components in later steps. Not yet wired into any selector below. --- */
+    --dt-surface-base: #0B0F17;
+    --dt-surface-panel: #111827;
+    --dt-surface-card: #1E293B;
+    --dt-surface-hover: #334155;
+    --dt-border-subtle: #1E293B;
+    --dt-border-strong: #334155;
+    --dt-grid-line: #1E293B;
+    --dt-text-primary: #F8FAFC;
+    --dt-text-secondary: #94A3B8;
+    --dt-text-muted: #64748B;
+    --dt-primary: #2563EB;
+    --dt-secondary: #10B981;
+    --dt-tertiary: #8B5CF6;
+    --dt-critical-path: #EF4444;
+    --dt-critical-path-bg: #450A0A;
+    --dt-baseline-purple: #A855F7;
+    --dt-baseline-bg: #3B0764;
+    --dt-scurve-planned: #38BDF8;
+    --dt-scurve-actual: #34D399;
+    --dt-warning-amber: #F59E0B;
+    --dt-warning-amber-bg: #451A03;
+    --dt-dep-line: #64748B;
+    --dt-dep-line-critical: #EF4444;
   }
 
   * { box-sizing: border-box; }

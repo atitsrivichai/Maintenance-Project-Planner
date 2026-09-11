@@ -413,7 +413,7 @@
     font-size: 11px; font-weight: 700; color: var(--dt-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;
   }
   .sidebar-header-cols { display: flex; align-items: center; flex: 1; min-width: 0; gap: 0; }
-  .col-label { font-size: 9.5px; flex-shrink: 0; }
+  .col-label { font-size: 9.5px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .col-label.col-name { flex: 1; min-width: 0; padding-left: 76px; }
   .task-tree-container { flex: 1; overflow-y: auto; overflow-x: hidden; }
 
@@ -516,7 +516,7 @@
 
   /* Gantt Bars & Badges */
   .gantt-bar {
-    position: absolute; top: 6px; height: 26px; border-radius: 13px; background: var(--status-inprogress);
+    position: absolute; top: 6px; height: 26px; border-radius: 3px; background: var(--status-inprogress);
     box-shadow: 0 2px 4px rgba(0,0,0,0.12); display: flex; align-items: center; padding: 0 8px;
     cursor: grab; z-index: 7; transition: transform 0.1s, box-shadow 0.1s; user-select: none;
   }
@@ -524,7 +524,7 @@
   .gantt-bar:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.2); }
   .gantt-bar.critical { box-shadow: 0 0 0 2.5px var(--dt-critical-path), 0 3px 8px rgba(239,68,68,0.4) !important; }
   .gantt-bar.cp-dimmed, .gantt-milestone.cp-dimmed { opacity: 0.25; }
-  .bar-progress-fill { position: absolute; top: 0; left: 0; bottom: 0; border-radius: 13px; background: rgba(0,0,0,0.18); pointer-events: none; }
+  .bar-progress-fill { position: absolute; top: 0; left: 0; bottom: 0; border-radius: 3px; background: rgba(0,0,0,0.18); pointer-events: none; }
   .bar-content {
     position: relative; z-index: 2; display: flex; align-items: center; gap: 6px; color: #FFF; font-size: 11px; font-weight: 600;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px rgba(0,0,0,0.3); width: 100%; pointer-events: none;
@@ -537,7 +537,7 @@
   /* Right Edge Resizer Handle for Gantt Bar */
   .bar-resize-handle {
     position: absolute; right: 0; top: 0; bottom: 0; width: 10px; cursor: e-resize;
-    border-top-right-radius: 13px; border-bottom-right-radius: 13px; background: rgba(255,255,255,0.25);
+    border-top-right-radius: 3px; border-bottom-right-radius: 3px; background: rgba(255,255,255,0.25);
     opacity: 0; transition: opacity 0.15s; z-index: 10;
   }
   .gantt-bar:hover .bar-resize-handle { opacity: 1; }
@@ -1009,7 +1009,7 @@
       <div class="sidebar-header" id="sidebarHeaderEl">
         <div class="sidebar-header-cols">
           <span class="col-label" style="width:34px;">WBS</span>
-          <span class="col-label col-name">Task Name (ลาก ⋮⋮ สลับ/ทำ Sub-task)</span>
+          <span class="col-label col-name" title="Task Name (ลาก ⋮⋮ สลับ/ทำ Sub-task)">TASK NAME</span>
           <span class="col-label" style="width:32px; text-align:right;">Dur</span>
           <span class="col-label" style="width:32px; text-align:right;">%</span>
           <span class="col-label" style="width:40px; text-align:right;">Dep</span>
@@ -1861,7 +1861,7 @@
         <span class="drag-handle" title="คลิกลากสลับลำดับ หรือวางทับงานอื่นเพื่อทำเป็น Sub-task">⋮⋮</span>
         <span class="task-indent" style="width:${depth * 12}px"></span>
         <span class="toggle-tree" data-id="${t.id}">${isParent ? (t.collapsed ? '▸' : '▾') : '•'}</span>
-        <span class="tree-icon-status" style="background:${t.color || getStatusColor(t.status)}">${t.type === 'mark' ? '📍' : (t.type === 'highlight' ? '🎨' : getStatusIcon(t.status))}</span>
+        <span class="tree-icon-status" style="background:${getStatusColor(t.status)}">${t.type === 'mark' ? '📍' : (t.type === 'highlight' ? '🎨' : getStatusIcon(t.status))}</span>
         <span class="node-title" data-id="${t.id}" title="${escapeHtml(t.name)}">${escapeHtml(t.name)} ${typeTag}</span>
         <span class="node-dur" title="ระยะเวลา (วันทำงาน)">${durText}</span>
         <span class="node-pct" title="% ความคืบหน้า">${pctText}</span>
@@ -2439,7 +2439,7 @@
         dia.className = 'gantt-milestone' + (isCritical ? ' critical' : '') + (isCpDimmed ? ' cp-dimmed' : '');
         dia.style.left = (cx - 10) + "px";
         dia.style.top = milestoneTop + "px";
-        dia.style.background = t.color || getStatusColor(t.status);
+        dia.style.background = getStatusColor(t.status);
         dia.title = `♦️ Milestone: ${t.name}\nวันที่กำหนด: ${t.start}\n[คลิกลากเพื่อย้ายวัน]`;
 
         dia.addEventListener('mousedown', ev => {
@@ -2491,14 +2491,14 @@
         bar.style.top = barTop + "px";
         bar.style.height = barHeight + "px";
         bar.style.width = w + "px";
-        bar.style.background = t.color || getStatusColor(t.status);
+        bar.style.background = getStatusColor(t.status);
         bar.title = `${t.name} (${t.progress}%)\n${t.start} ถึง ${t.end}\n[คลิกลากเพื่อย้ายวัน / ลากขอบขวาเพื่อยืดหดจำนวนวัน]`;
 
         const barLabel = (isCritical ? 'CRITICAL • ' : '') + `${escapeHtml(t.name)} (${t.progress}%)`;
         bar.innerHTML = `
           <div class="bar-progress-fill" style="width:${t.progress}%"></div>
           <div class="bar-content">
-            <span class="bar-state-icon" style="color:${t.color || getStatusColor(t.status)}">${getStatusIcon(t.status)}</span>
+            <span class="bar-state-icon" style="color:${getStatusColor(t.status)}">${getStatusIcon(t.status)}</span>
             <span>${barLabel}</span>
           </div>
           <div class="bar-resize-handle" title="ลากขอบขวาเพื่อยืด/หดวัน"></div>

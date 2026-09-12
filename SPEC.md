@@ -367,8 +367,11 @@ task list กับ Gantt bar ตรงกันเป๊ะ (ดูหัวข
 
 ## 9. External Dependencies
 
-- **Firebase JS SDK v10.13.2** เท่านั้น โหลดผ่าน CDN แบบ ES module (`firebase-app.js`, `firebase-auth.js`,
-  `firebase-firestore.js` จาก `https://www.gstatic.com/firebasejs/10.13.2/...`)
+- **Firebase JS SDK v10.13.2** เท่านั้น โหลดผ่าน CDN แบบ ES module (`firebase-app.js`, `firebase-app-check.js`,
+  `firebase-auth.js`, `firebase-firestore.js` จาก `https://www.gstatic.com/firebasejs/10.13.2/...`)
+- **Firebase App Check** (`ReCaptchaV3Provider`) เปิดใช้งานเพื่อยืนยันว่า request ที่ยิงมาที่ Firestore/Auth
+  มาจากหน้าเว็บนี้จริง กัน script ภายนอกที่คัดลอก `firebaseConfig.apiKey` ไปเรียกตรงๆ (apiKey เพียงอย่างเดียว
+  ไม่ใช่ secret ที่ปิดบังได้ตามหลักการ Firebase Web SDK — ดูหัวข้อ Known Limitations)
 - ไม่มี chart library ภายนอก — Gantt bar และ S-Curve เขียนด้วย raw SVG/DOM เอง (ไม่ใช้ D3, Chart.js ฯลฯ)
 - ไม่มี icon library — ใช้ emoji ธรรมดา (📊 📈 🎯 ☁️ ฯลฯ)
 - **Google Fonts CDN** (`fonts.googleapis.com`/`fonts.gstatic.com`): Be Vietnam Pro (`--font-sans`),

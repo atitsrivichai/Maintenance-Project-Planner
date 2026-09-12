@@ -2,7 +2,15 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /plans/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+
+      // create/update: เจ้าของ uid เท่านั้น + จำกัดขนาดเอกสาร (กัน quota/ค่าใช้จ่ายบวมจากการยิง write
+      // ขยะขนาดใหญ่ผ่าน apiKey ที่ฝังอยู่ฝั่ง client) + บังคับว่า field "tasks" ต้องเป็น list เสมอ
+      // (sanity check ขั้นต่ำ กัน payload ผิดรูปแบบที่จะทำให้ applyLoadedPayload() พังตอนโหลดฝั่งไหนก็ตาม)
+      // ไม่ล็อก schema ทั้งหมดเพราะแอปเพิ่ม field ใหม่บ่อย (systemConfig, outageExceptions ฯลฯ)
+      allow create, update: if request.auth != null && request.auth.uid == uid
+                             && request.resource.size() < 900000
+                             && request.resource.data.tasks is list;
     }
   }
 }

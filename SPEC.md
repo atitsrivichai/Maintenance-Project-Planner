@@ -289,7 +289,10 @@ task list กับ Gantt bar ตรงกันเป๊ะ (ดูหัวข
   - `.mcp.json` — ผูก Firebase MCP server (`npx -y firebase-tools@latest experimental:mcp`)
   - `.firebaserc` — ตั้ง default project เป็น `maintenance-project-planner-db`
   - `firebase.json` — ชี้ไปที่ `firestore.rules`
-  - `firestore.rules` — จำกัดสิทธิ์ `plans/{uid}` ให้เฉพาะ `request.auth.uid == uid` เท่านั้น
+  - `firestore.rules` — จำกัดสิทธิ์ `plans/{uid}` ให้เฉพาะ `request.auth.uid == uid` เท่านั้น พร้อม
+    จำกัดขนาดเอกสาร (`request.resource.size() < 900000` bytes) และบังคับว่า field `tasks` ต้องเป็น list
+    เสมอตอน create/update (sanity check ขั้นต่ำ กัน payload ผิดรูปแบบ/ขยะขนาดใหญ่ ไม่ได้ล็อก schema ทั้งหมด
+    เพราะแอปเพิ่ม field ใหม่บ่อย)
 
 ## 8. ฟังก์ชันหลัก (Key Functions Reference)
 

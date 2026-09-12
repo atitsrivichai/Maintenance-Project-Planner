@@ -5181,6 +5181,9 @@
   window.__onSignedOut = function(){
     loginOverlayEl.classList.add('open');
     if(menuUserInfoEl) menuUserInfoEl.textContent = '';
+    loginStatusMsgEl.textContent = '';
+    loginStatusMsgEl.classList.remove('error');
+    btnGoogleSignInEl.disabled = false;
   };
 
   window.__onAuthError = function(err){

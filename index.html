@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+  import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app-check.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
   import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 
@@ -22,6 +23,14 @@
   };
 
   const app = initializeApp(firebaseConfig);
+
+  // App Check (reCAPTCHA v3) — ยืนยันว่า request มาจากหน้าเว็บนี้จริง ไม่ใช่ script ภายนอกที่คัดลอก
+  // firebaseConfig ไปยิง Firestore/Auth ตรงๆ (apiKey เพียงอย่างเดียวไม่ใช่ secret ที่ปิดบังได้)
+  initializeAppCheck(app, {
+    provider: new ReCaptchaV3Provider('6LeVzrctAAAAAK3LcskczEezNaF0YG8TXee8mKQS'),
+    isTokenAutoRefreshEnabled: true
+  });
+
   const auth = getAuth(app);
   const db = getFirestore(app);
   const googleProvider = new GoogleAuthProvider();
